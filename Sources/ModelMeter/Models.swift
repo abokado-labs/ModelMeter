@@ -75,6 +75,22 @@ struct RateLimitWindow {
         max(100 - usedPercent, 0)
     }
 
+    var elapsedProgress: Double {
+        let windowSeconds = TimeInterval(windowMinutes * 60)
+        guard windowSeconds > 0 else { return 0 }
+        let start = resetsAt.addingTimeInterval(-windowSeconds)
+        let elapsed = Date().timeIntervalSince(start)
+        return min(max(elapsed / windowSeconds, 0), 1)
+    }
+
+    var paceUsedPercent: Double {
+        elapsedProgress * 100
+    }
+
+    var isAheadOfPace: Bool {
+        usedPercent > paceUsedPercent + 2
+    }
+
     var windowLabel: String {
         if windowMinutes == 300 { return "5 hours" }
         if windowMinutes == 10_080 { return "7 days" }
@@ -148,6 +164,40 @@ enum MenuBarMetric: String, CaseIterable, Identifiable {
             return rateLimits.secondary.remainingPercent
         }
     }
+
+    func value(from snapshot: ClaudeUsageSnapshot) -> Double? {
+        guard let rateLimits = snapshot.rateLimits else { return nil }
+        switch self {
+        case .fiveHourUsed:
+            return rateLimits.session.usedPercent
+        case .fiveHourAvailable:
+            return rateLimits.session.remainingPercent
+        case .sevenDayUsed:
+            return rateLimits.weekly.usedPercent
+        case .sevenDayAvailable:
+            return rateLimits.weekly.remainingPercent
+        }
+    }
+
+    func codexWindow(from snapshot: UsageSnapshot) -> RateLimitWindow? {
+        guard let rateLimits = snapshot.rateLimits else { return nil }
+        switch self {
+        case .fiveHourUsed, .fiveHourAvailable:
+            return rateLimits.primary
+        case .sevenDayUsed, .sevenDayAvailable:
+            return rateLimits.secondary
+        }
+    }
+
+    func claudeWindow(from snapshot: ClaudeUsageSnapshot) -> RateLimitWindow? {
+        guard let rateLimits = snapshot.rateLimits else { return nil }
+        switch self {
+        case .fiveHourUsed, .fiveHourAvailable:
+            return rateLimits.session
+        case .sevenDayUsed, .sevenDayAvailable:
+            return rateLimits.weekly
+        }
+    }
 }
 
 enum MenuBarIconMode: String, CaseIterable, Identifiable {
@@ -165,27 +215,15 @@ enum MenuBarIconMode: String, CaseIterable, Identifiable {
 }
 
 enum MenuBarLabelStyle: String, CaseIterable, Identifiable {
-    case short
-    case compact
+    case letters
+    case icons
 
     var id: String { rawValue }
 
     var title: String {
         switch self {
-        case .short: return "Short labels: W / 5Hr"
-        case .compact: return "Compact labels: 7d / 5h"
-        }
-    }
-
-    func prefix(for metric: MenuBarMetric) -> String {
-        switch self {
-        case .short:
-            switch metric {
-            case .fiveHourUsed, .fiveHourAvailable: return "5Hr"
-            case .sevenDayUsed, .sevenDayAvailable: return "W"
-            }
-        case .compact:
-            return metric.shortPrefix
+        case .letters: return "Letters"
+        case .icons: return "Icons"
         }
     }
 }

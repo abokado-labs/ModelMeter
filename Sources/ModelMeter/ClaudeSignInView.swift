@@ -1,9 +1,19 @@
+import AppKit
 import SwiftUI
 import WebKit
 
 @MainActor
 final class ClaudeSignInController: ObservableObject {
     weak var webView: WKWebView?
+    @Published var sessionCookieStatus = "Waiting for Claude session cookie"
+
+    func markSessionCookieFound(expiryDate: Date?) {
+        if let expiryDate {
+            sessionCookieStatus = "Claude session cookie found, expires \(expiryDate.formatted(date: .abbreviated, time: .shortened))"
+        } else {
+            sessionCookieStatus = "Claude session cookie found"
+        }
+    }
 
     func extractCredentials() async throws -> (sessionKey: String, cfClearance: String, organizationID: String?) {
         guard let webView else {
@@ -16,14 +26,19 @@ final class ClaudeSignInController: ObservableObject {
             }
         }
 
-        guard let sessionKey = cookies.first(where: { $0.name == "sessionKey" })?.value,
-              !sessionKey.isEmpty
-        else {
-            throw ClaudeSignInError.sessionCookieMissing
+        let claudeCookies = cookies.filter { cookie in
+            cookie.domain.contains("claude") || cookie.domain.contains("anthropic")
         }
 
-        let cfClearance = cookies.first(where: { $0.name == "cf_clearance" })?.value ?? ""
-        return (sessionKey, cfClearance, Self.organizationID(from: webView.url))
+        guard let sessionKeyCookie = claudeCookies.first(where: { $0.name == "sessionKey" }),
+              !sessionKeyCookie.value.isEmpty
+        else {
+            let names = claudeCookies.map { "\($0.name)@\($0.domain)" }.sorted().joined(separator: ", ")
+            throw ClaudeSignInError.sessionCookieMissing(names.isEmpty ? "no Claude cookies visible" : names)
+        }
+
+        let cfClearance = claudeCookies.first(where: { $0.name == "cf_clearance" })?.value ?? ""
+        return (sessionKeyCookie.value, cfClearance, Self.organizationID(from: webView.url))
     }
 
     private static func organizationID(from url: URL?) -> String? {
@@ -44,7 +59,7 @@ struct ClaudeSignInView: View {
     @Environment(\.dismiss) private var dismiss
     var onClose: () -> Void = {}
     @StateObject private var controller = ClaudeSignInController()
-    @State private var status = "Sign in to Claude. When the usage page loads, click Use This Session."
+    @State private var status = "Sign in to Claude. When Claude opens, click Use This Session."
     @State private var isCompleting = false
 
     var body: some View {
@@ -57,6 +72,9 @@ struct ClaudeSignInView: View {
                         .font(.headline)
                     Text(status)
                         .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Text(controller.sessionCookieStatus)
+                        .font(.caption2)
                         .foregroundStyle(.secondary)
                 }
                 Spacer()
@@ -85,7 +103,9 @@ struct ClaudeSignInView: View {
             do {
                 let credentials = try await controller.extractCredentials()
                 await MainActor.run {
-                    status = "Found Claude session. Connecting usage..."
+                    status = credentials.organizationID == nil
+                        ? "Found session. Discovering Claude organization..."
+                        : "Found session and organization. Fetching Claude usage..."
                 }
                 await store.completeClaudeSignIn(
                     sessionKey: credentials.sessionKey,
@@ -115,17 +135,22 @@ private struct ClaudeWebView: NSViewRepresentable {
     @ObservedObject var controller: ClaudeSignInController
 
     func makeCoordinator() -> Coordinator {
-        Coordinator()
+        Coordinator(controller: controller, cookieDomain: "claude.ai")
     }
 
     func makeNSView(context: Context) -> WKWebView {
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = .default()
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
+
         let webView = WKWebView(frame: .zero, configuration: configuration)
+        webView.customUserAgent = ClaudeUsageClient.safariUserAgent
         webView.navigationDelegate = context.coordinator
         webView.uiDelegate = context.coordinator
+        context.coordinator.parentWebView = webView
+        context.coordinator.startObservingCookies(for: configuration.websiteDataStore)
         controller.webView = webView
+
         let cookieStore = configuration.websiteDataStore.httpCookieStore
         cookieStore.getAllCookies { cookies in
             let group = DispatchGroup()
@@ -144,18 +169,29 @@ private struct ClaudeWebView: NSViewRepresentable {
         controller.webView = nsView
     }
 
-    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate {
-        func webView(
-            _ webView: WKWebView,
-            decidePolicyFor navigationAction: WKNavigationAction,
-            decisionHandler: @escaping @MainActor @Sendable (WKNavigationActionPolicy) -> Void
-        ) {
-            if navigationAction.targetFrame == nil, let url = navigationAction.request.url {
-                webView.load(URLRequest(url: url))
-                decisionHandler(.cancel)
-                return
-            }
-            decisionHandler(.allow)
+    final class Coordinator: NSObject, WKNavigationDelegate, WKUIDelegate, WKHTTPCookieStoreObserver {
+        weak var controller: ClaudeSignInController?
+        let cookieDomain: String
+        weak var parentWebView: WKWebView?
+        private var popupWindow: NSPanel?
+        private var popupWebView: WKWebView?
+        private var foundCookie = false
+
+        init(controller: ClaudeSignInController, cookieDomain: String) {
+            self.controller = controller
+            self.cookieDomain = cookieDomain
+        }
+
+        func startObservingCookies(for dataStore: WKWebsiteDataStore) {
+            dataStore.httpCookieStore.add(self)
+        }
+
+        func cookiesDidChange(in cookieStore: WKHTTPCookieStore) {
+            checkForSessionCookie(in: cookieStore)
+        }
+
+        func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+            checkForSessionCookie(in: webView.configuration.websiteDataStore.httpCookieStore)
         }
 
         func webView(
@@ -164,24 +200,62 @@ private struct ClaudeWebView: NSViewRepresentable {
             for navigationAction: WKNavigationAction,
             windowFeatures: WKWindowFeatures
         ) -> WKWebView? {
-            if navigationAction.targetFrame == nil {
-                webView.load(navigationAction.request)
+            let popup = WKWebView(frame: CGRect(x: 0, y: 0, width: 520, height: 680), configuration: configuration)
+            popup.customUserAgent = ClaudeUsageClient.safariUserAgent
+            popup.navigationDelegate = self
+            popup.uiDelegate = self
+
+            let panel = NSPanel(
+                contentRect: CGRect(x: 0, y: 0, width: 520, height: 680),
+                styleMask: [.titled, .closable, .resizable],
+                backing: .buffered,
+                defer: false
+            )
+            panel.title = "Sign In"
+            panel.contentView = popup
+            panel.center()
+            panel.makeKeyAndOrderFront(nil)
+            NSApp.activate(ignoringOtherApps: true)
+
+            popupWindow = panel
+            popupWebView = popup
+            return popup
+        }
+
+        func webViewDidClose(_ webView: WKWebView) {
+            if webView === popupWebView {
+                popupWindow?.close()
+                popupWindow = nil
+                popupWebView = nil
             }
-            return nil
+        }
+
+        private func checkForSessionCookie(in cookieStore: WKHTTPCookieStore) {
+            guard !foundCookie else { return }
+            cookieStore.getAllCookies { [weak self] cookies in
+                guard let self, !self.foundCookie else { return }
+                guard let cookie = cookies.first(where: { $0.name == "sessionKey" && $0.domain.contains(self.cookieDomain) }) else {
+                    return
+                }
+                self.foundCookie = true
+                DispatchQueue.main.async { [weak self] in
+                    self?.controller?.markSessionCookieFound(expiryDate: cookie.expiresDate)
+                }
+            }
         }
     }
 }
 
 enum ClaudeSignInError: LocalizedError {
     case webViewMissing
-    case sessionCookieMissing
+    case sessionCookieMissing(String)
 
     var errorDescription: String? {
         switch self {
         case .webViewMissing:
             return "Claude sign-in window is not ready"
-        case .sessionCookieMissing:
-            return "No Claude session cookie found yet. Finish signing in, then click Use This Session."
+        case .sessionCookieMissing(let details):
+            return "No Claude session cookie found yet (\(details)). Finish signing in, then click Use This Session."
         }
     }
 }

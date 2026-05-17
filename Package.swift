@@ -3,17 +3,23 @@
 import PackageDescription
 
 let package = Package(
-    name: "LLMUsageTracker",
+    name: "ModelMeter",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "LLMUsageTracker", targets: ["LLMUsageTracker"])
+        .executable(name: "ModelMeter", targets: ["ModelMeter"])
+    ],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.9.1")
     ],
     targets: [
         .executableTarget(
-            name: "LLMUsageTracker",
-            path: "Sources/LLMUsageTracker",
+            name: "ModelMeter",
+            dependencies: [
+                .product(name: "Sparkle", package: "Sparkle")
+            ],
+            path: "Sources/ModelMeter",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),
@@ -21,6 +27,11 @@ let package = Package(
                 .linkedFramework("Security"),
                 .linkedFramework("UserNotifications")
             ]
+        ),
+        .testTarget(
+            name: "ModelMeterTests",
+            dependencies: ["ModelMeter"],
+            path: "Tests/ModelMeterTests"
         )
     ]
 )

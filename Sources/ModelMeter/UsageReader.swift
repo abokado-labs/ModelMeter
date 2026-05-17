@@ -4,6 +4,13 @@ final class UsageReader: Sendable {
     private struct SessionEvent: Decodable {
         let timestamp: String?
         let payload: Payload?
+        let rateLimits: RateLimitsPayload?
+
+        enum CodingKeys: String, CodingKey {
+            case timestamp
+            case payload
+            case rateLimits = "rate_limits"
+        }
     }
 
     private struct Payload: Decodable {
@@ -75,6 +82,19 @@ final class UsageReader: Sendable {
 
     func loadSnapshot(settings: SettingsStore = .shared) throws -> UsageSnapshot {
         try loadSnapshot(codexHome: settings.codexHome)
+    }
+
+    func loadBalanceSnapshot(codexHome: String) -> UsageSnapshot {
+        let codexHomeURL = URL(fileURLWithPath: codexHome)
+        return UsageSnapshot(
+            rateLimits: latestRateLimits(codexHomeURL: codexHomeURL),
+            updatedAt: Date(),
+            errorMessage: nil
+        )
+    }
+
+    func loadRateLimitsForTesting(fileURL: URL) -> CodexRateLimits? {
+        latestRateLimits(in: fileURL)
     }
 
     func loadSnapshot(codexHome: String) throws -> UsageSnapshot {
@@ -223,28 +243,52 @@ final class UsageReader: Sendable {
         }
 
         let decoder = JSONDecoder()
+        var fallback: CodexRateLimits?
         for line in text.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
+            guard line.contains(#""payload":{"type":"token_count""#) else {
+                continue
+            }
             guard let lineData = String(line).data(using: .utf8),
                   let event = try? decoder.decode(SessionEvent.self, from: lineData),
-                  let payload = event.payload?.rateLimits,
-                  let primaryPayload = payload.primary,
-                  let secondaryPayload = payload.secondary,
+                  let rateLimits = event.payload?.rateLimits ?? event.rateLimits,
+                  let primaryPayload = rateLimits.primary,
+                  let secondaryPayload = rateLimits.secondary,
                   let primary = makeWindow(primaryPayload),
                   let secondary = makeWindow(secondaryPayload)
             else {
                 continue
             }
 
-            return CodexRateLimits(
+            let capturedAt = parseTimestamp(event.timestamp) ?? modificationDate(fileURL)
+            let snapshot = CodexRateLimits(
                 primary: primary,
                 secondary: secondary,
-                credits: makeCredits(payload.credits),
-                planType: payload.planType,
-                capturedAt: parseTimestamp(event.timestamp) ?? modificationDate(fileURL),
+                credits: makeCredits(rateLimits.credits),
+                planType: rateLimits.planType,
+                capturedAt: capturedAt,
                 sourcePath: fileURL.path
             )
+
+            if isEmptyPlaceholder(primary: primary, secondary: secondary, capturedAt: capturedAt) {
+                fallback = fallback ?? snapshot
+                continue
+            }
+
+            return snapshot
         }
-        return nil
+        return fallback
+    }
+
+
+    private func isEmptyPlaceholder(primary: RateLimitWindow, secondary: RateLimitWindow, capturedAt: Date) -> Bool {
+        guard primary.usedPercent == 0, secondary.usedPercent == 0 else { return false }
+        return resetMatchesFullWindow(primary, capturedAt: capturedAt)
+            && resetMatchesFullWindow(secondary, capturedAt: capturedAt)
+    }
+
+    private func resetMatchesFullWindow(_ window: RateLimitWindow, capturedAt: Date) -> Bool {
+        let expectedReset = capturedAt.addingTimeInterval(TimeInterval(window.windowMinutes * 60))
+        return abs(window.resetsAt.timeIntervalSince(expectedReset)) < 120
     }
 
     private func makeWindow(_ payload: RateLimitWindowPayload) -> RateLimitWindow? {

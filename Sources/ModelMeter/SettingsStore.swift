@@ -18,6 +18,11 @@ final class SettingsStore: @unchecked Sendable {
         static let menuBarLabelStyle = "menuBarLabelStyle"
         static let menuBarFontSize = "menuBarFontSize"
         static let claudeOrganizationID = "claudeOrganizationID"
+        static let codexEnabled = "codexEnabled"
+        static let claudeEnabled = "claudeEnabled"
+        static let showCodexInMenuBar = "showCodexInMenuBar"
+        static let showClaudeInMenuBar = "showClaudeInMenuBar"
+        static let paceWarningsEnabled = "paceWarningsEnabled"
     }
 
     var codexHome: String {
@@ -26,6 +31,33 @@ final class SettingsStore: @unchecked Sendable {
                 ?? FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(".codex").path
         }
         set { defaults.set(newValue, forKey: Key.codexHome) }
+    }
+
+
+    var codexEnabled: Bool {
+        get { defaults.object(forKey: Key.codexEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.codexEnabled) }
+    }
+
+    var claudeEnabled: Bool {
+        get { defaults.object(forKey: Key.claudeEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.claudeEnabled) }
+    }
+
+    var showCodexInMenuBar: Bool {
+        get { defaults.object(forKey: Key.showCodexInMenuBar) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.showCodexInMenuBar) }
+    }
+
+    var showClaudeInMenuBar: Bool {
+        get { defaults.object(forKey: Key.showClaudeInMenuBar) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.showClaudeInMenuBar) }
+    }
+
+
+    var paceWarningsEnabled: Bool {
+        get { defaults.object(forKey: Key.paceWarningsEnabled) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Key.paceWarningsEnabled) }
     }
 
     var sessionLimit: Int {
@@ -95,7 +127,7 @@ final class SettingsStore: @unchecked Sendable {
             guard let rawValue = defaults.string(forKey: Key.menuBarLabelStyle),
                   let style = MenuBarLabelStyle(rawValue: rawValue)
             else {
-                return .short
+                return .letters
             }
             return style
         }

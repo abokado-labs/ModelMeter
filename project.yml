@@ -1,0 +1,68 @@
+name: ModelMeter
+options:
+  minimumXcodeGenVersion: 2.0.0
+  deploymentTarget:
+    macOS: "14.0"
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.9.1
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: ""
+    CODE_SIGN_STYLE: Automatic
+    ENABLE_HARDENED_RUNTIME: YES
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  ModelMeter:
+    type: application
+    platform: macOS
+    info:
+      path: ModelMeter/Info.plist
+      properties:
+        CFBundleDisplayName: Model Meter
+        CFBundleName: Model Meter
+        CFBundleIconName: AppIcon
+        LSUIElement: true
+        LSMinimumSystemVersion: "14.0"
+        LSApplicationCategoryType: public.app-category.productivity
+        NSHumanReadableCopyright: Copyright © 2026 Abokado Labs. All rights reserved.
+        SUEnableInstallerLauncherService: true
+        SUFeedURL: https://abokadolabs.com/model-meter/appcast.xml
+        SUPublicEDKey: DHBZqhT/krLFIHtzcVR4zUku0yFgVleeRIK8toESI0E=
+    sources:
+      - path: Sources/ModelMeter
+      - path: Assets.xcassets
+        buildPhase: resources
+      - path: Assets/ChatGPT-Logo.png
+        buildPhase: resources
+      - path: Assets/claude-transparent-custom.png
+        buildPhase: resources
+      - path: LICENSE
+        buildPhase: resources
+      - path: PRIVACY.md
+        buildPhase: resources
+      - path: THIRD_PARTY_NOTICES.md
+        buildPhase: resources
+      - path: CHANGELOG.md
+        buildPhase: resources
+    dependencies:
+      - package: Sparkle
+        product: Sparkle
+    entitlements:
+      path: ModelMeter/ModelMeter.entitlements
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.network.client: true
+    settings:
+      base:
+        PRODUCT_NAME: Model Meter
+        EXECUTABLE_NAME: ModelMeter
+        PRODUCT_BUNDLE_IDENTIFIER: com.bobkitchen.ModelMeter
+        INFOPLIST_FILE: ModelMeter/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        SWIFT_VERSION: "6.0"
+        ENABLE_HARDENED_RUNTIME: YES

@@ -1,7 +1,33 @@
+# macOS
 .DS_Store
-build/
+
+# Swift / SwiftPM
 .build/
 .swiftpm/
+Package.resolved.swp
+
+# Xcode
+build/
 DerivedData/
 *.xcuserstate
 xcuserdata/
+*.xcworkspace/xcuserdata/
+
+# Built .app bundles. The bundle in the project root is produced by
+# scripts/build_app.sh and Xcode archives; it should never be checked
+# in. Wildcard the pattern so any future-built bundle is also ignored.
+Model Meter.app/
+LLMUsageTracker.app/
+*.app/
+
+# Sparkle release staging. The signed/notarized ZIPs and generated
+# appcast for each release live on the website (abokadolabs.com), not
+# in the source repo. Local staging output is throwaway.
+sparkle-release-staging/
+
+# Notarization / signing artifacts (just in case)
+*.dmg
+*.pkg
+*.mobileprovision
+*.p12
+*.cer
