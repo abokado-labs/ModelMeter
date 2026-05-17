@@ -3,17 +3,22 @@ import UserNotifications
 
 @main
 struct LLMUsageTrackerApp: App {
-    @StateObject private var store = UsageStore()
+    @StateObject private var store: UsageStore
+
+    init() {
+        let store = UsageStore()
+        _store = StateObject(wrappedValue: store)
+        Task { @MainActor in
+            store.start()
+            await NotificationManager.shared.requestAuthorization()
+        }
+    }
 
     var body: some Scene {
         MenuBarExtra {
             DashboardView()
                 .environmentObject(store)
                 .frame(width: 390, height: 560)
-                .task {
-                    store.start()
-                    await NotificationManager.shared.requestAuthorization()
-                }
         } label: {
             MenuBarLabel(store: store)
         }

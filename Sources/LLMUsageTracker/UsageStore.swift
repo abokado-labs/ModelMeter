@@ -24,6 +24,7 @@ final class UsageStore: ObservableObject {
     private let claudeClient = ClaudeUsageClient()
     private var timer: Timer?
     private var lastNotificationStatus: UsageStatus = .unknown
+    private var hasStarted = false
 
     init() {
         codexHome = settings.codexHome
@@ -49,8 +50,10 @@ final class UsageStore: ObservableObject {
     }
 
     func start() {
-        refresh()
+        guard !hasStarted else { return }
+        hasStarted = true
         scheduleTimer()
+        refresh()
     }
 
     func refresh() {

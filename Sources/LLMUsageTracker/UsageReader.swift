@@ -1,6 +1,6 @@
 import Foundation
 
-final class UsageReader {
+final class UsageReader: Sendable {
     private struct SessionEvent: Decodable {
         let timestamp: String?
         let payload: Payload?
@@ -74,7 +74,11 @@ final class UsageReader {
     }
 
     func loadSnapshot(settings: SettingsStore = .shared) throws -> UsageSnapshot {
-        let codexHomeURL = URL(fileURLWithPath: settings.codexHome)
+        try loadSnapshot(codexHome: settings.codexHome)
+    }
+
+    func loadSnapshot(codexHome: String) throws -> UsageSnapshot {
+        let codexHomeURL = URL(fileURLWithPath: codexHome)
         let databaseURL = codexHomeURL.appendingPathComponent("state_5.sqlite")
         guard FileManager.default.fileExists(atPath: databaseURL.path) else {
             throw UsageReaderError.missingDatabase(databaseURL.path)
