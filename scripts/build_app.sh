@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-APP_NAME="CodexUsageTracker"
+APP_NAME="LLMUsageTracker"
 BUILD_DIR="$ROOT_DIR/build"
 APP_DIR="$BUILD_DIR/$APP_NAME.app"
 CONTENTS_DIR="$APP_DIR/Contents"
@@ -17,7 +17,7 @@ swiftc \
   -module-cache-path "$MODULE_CACHE_DIR" \
   -parse-as-library \
   -O \
-  "$ROOT_DIR"/Sources/CodexUsageTracker/*.swift \
+  "$ROOT_DIR"/Sources/LLMUsageTracker/*.swift \
   -o "$MACOS_DIR/$APP_NAME"
 
 cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
@@ -28,13 +28,13 @@ cat > "$CONTENTS_DIR/Info.plist" <<'PLIST'
   <key>CFBundleDevelopmentRegion</key>
   <string>en</string>
   <key>CFBundleExecutable</key>
-  <string>CodexUsageTracker</string>
+  <string>LLMUsageTracker</string>
   <key>CFBundleIdentifier</key>
-  <string>com.local.CodexUsageTracker</string>
+  <string>com.local.LLMUsageTracker</string>
   <key>CFBundleInfoDictionaryVersion</key>
   <string>6.0</string>
   <key>CFBundleName</key>
-  <string>Codex Usage Tracker</string>
+  <string>LLM Usage Tracker</string>
   <key>CFBundlePackageType</key>
   <string>APPL</string>
   <key>CFBundleShortVersionString</key>

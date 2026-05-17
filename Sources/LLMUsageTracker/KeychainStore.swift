@@ -2,7 +2,7 @@ import Foundation
 import Security
 
 enum KeychainStore {
-    private static let service = "com.local.CodexUsageTracker"
+    private static let service = "com.local.LLMUsageTracker"
 
     static func read(account: String) -> String {
         let query: [String: Any] = [

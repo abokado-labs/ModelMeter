@@ -2,7 +2,7 @@ import SwiftUI
 import UserNotifications
 
 @main
-struct CodexUsageTrackerApp: App {
+struct LLMUsageTrackerApp: App {
     @StateObject private var store = UsageStore()
 
     var body: some Scene {

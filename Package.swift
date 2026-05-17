@@ -3,17 +3,17 @@
 import PackageDescription
 
 let package = Package(
-    name: "CodexUsageTracker",
+    name: "LLMUsageTracker",
     platforms: [
         .macOS(.v14)
     ],
     products: [
-        .executable(name: "CodexUsageTracker", targets: ["CodexUsageTracker"])
+        .executable(name: "LLMUsageTracker", targets: ["LLMUsageTracker"])
     ],
     targets: [
         .executableTarget(
-            name: "CodexUsageTracker",
-            path: "Sources/CodexUsageTracker",
+            name: "LLMUsageTracker",
+            path: "Sources/LLMUsageTracker",
             linkerSettings: [
                 .linkedFramework("AppKit"),
                 .linkedFramework("SwiftUI"),

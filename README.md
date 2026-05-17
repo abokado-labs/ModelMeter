@@ -1,4 +1,4 @@
-# Codex Usage Tracker
+# LLM Usage Tracker
 
 A local macOS menu bar tracker for Codex Desktop usage. It reads Codex's local session status snapshots and SQLite state under `~/.codex`, then shows the latest recorded 5-hour and 7-day Codex balances.
 
@@ -21,13 +21,13 @@ A local macOS menu bar tracker for Codex Desktop usage. It reads Codex's local s
 The built app is created at:
 
 ```text
-build/CodexUsageTracker.app
+build/LLMUsageTracker.app
 ```
 
 Open it from Finder or run:
 
 ```bash
-open build/CodexUsageTracker.app
+open build/LLMUsageTracker.app
 ```
 
 ## Notes
