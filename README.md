@@ -1,8 +1,19 @@
 # Model Meter
 
+**A native macOS menu bar app for tracking Codex and Claude usage windows.**
+
+🌐 **Website**: [abokadolabs.com/model-meter](https://abokadolabs.com/model-meter/) &nbsp;·&nbsp;
+📦 **Download**: [Latest release](https://abokadolabs.com/model-meter/releases/Model-Meter-1.0.0.zip) &nbsp;·&nbsp;
+🔒 **Privacy**: [Policy](https://abokadolabs.com/model-meter/privacy.html) &nbsp;·&nbsp;
+🤝 **Contributing**: [Guide](CONTRIBUTING.md)
+
+---
+
 Model Meter is a native macOS menu bar app for tracking AI assistant usage windows. It currently supports local Codex/OpenAI usage data and optional authenticated Claude usage data, presenting both providers in the same 5-hour and weekly format.
 
 The app is designed for people who use Codex and Claude heavily and want a small, always-visible indication of remaining capacity without opening either product.
+
+Made by [Abokado Labs](https://abokadolabs.com) — a small dev shop building considered software for everyday problems.
 
 ## What It Shows
 
