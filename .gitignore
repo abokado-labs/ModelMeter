@@ -31,3 +31,8 @@ sparkle-release-staging/
 *.mobileprovision
 *.p12
 *.cer
+
+# Maintainer-only coordination docs — these describe the website
+# handoff workflow and live on Bob's machine, not in the public repo.
+SPARKLE_WEBSITE_HANDOFF.md
+SPARKLE_WEBSITE_READY.md
