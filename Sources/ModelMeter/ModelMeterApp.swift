@@ -12,7 +12,7 @@ struct ModelMeterApp: App {
         Settings {
             SettingsView()
                 .environmentObject(appDelegate.store)
-                .frame(width: 520)
+                .frame(width: 640, height: 560)
         }
     }
 }
@@ -25,6 +25,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private var updaterController: SPUStandardUpdaterController?
     private let popover = NSPopover()
     private let contextMenu = NSMenu()
+    private let popoverWidth: CGFloat = 390
     private var settingsWindow: NSWindow?
     private var cancellables: Set<AnyCancellable> = []
 
@@ -57,17 +58,61 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func configurePopover() {
         popover.behavior = .transient
         popover.delegate = self
-        popover.contentSize = NSSize(width: 390, height: 560)
+        popover.contentSize = dashboardPopoverSize()
         popover.contentViewController = NSHostingController(
             rootView: DashboardView()
                 .environmentObject(store)
-                .frame(width: 390, height: 560)
+                .frame(width: popoverWidth)
         )
+    }
+
+    private func dashboardPopoverSize() -> NSSize {
+        var providerHeights: [CGFloat] = []
+
+        if store.codexEnabled {
+            providerHeights.append(providerHeight(hasMessage: hasVisibleMessage(store.snapshot.errorMessage)))
+        }
+        if store.claudeEnabled {
+            providerHeights.append(providerHeight(hasMessage: hasVisibleMessage(claudePopoverMessage)))
+        }
+        if store.geminiEnabled {
+            providerHeights.append(providerHeight(hasMessage: hasVisibleMessage(store.geminiSnapshot.errorMessage)))
+        }
+
+        let providerGap = CGFloat(max(providerHeights.count - 1, 0)) * 10
+        let chromeHeight: CGFloat = 104
+        let contentPadding: CGFloat = 24
+        let emptyHeight: CGFloat = providerHeights.isEmpty ? 72 : 0
+        let rawHeight = chromeHeight + contentPadding + providerGap + emptyHeight + providerHeights.reduce(0, +)
+        return NSSize(width: popoverWidth, height: clampedPopoverHeight(rawHeight))
+    }
+
+
+    private func providerHeight(hasMessage: Bool) -> CGFloat {
+        176 + (hasMessage ? 46 : 0)
+    }
+
+    private func hasVisibleMessage(_ message: String?) -> Bool {
+        guard let message else { return false }
+        return !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private var claudePopoverMessage: String? {
+        if store.claudeOrganizationID.isEmpty {
+            return "Connect Claude in settings to show the same 5-hour and weekly balance format."
+        }
+        return store.claudeSnapshot.errorMessage
+    }
+
+    private func clampedPopoverHeight(_ rawHeight: CGFloat) -> CGFloat {
+        let visibleHeight = NSScreen.main?.visibleFrame.height ?? 800
+        let maximumHeight = max(420, visibleHeight - 80)
+        return min(max(rawHeight.rounded(.up), 420), maximumHeight)
     }
 
     private func configureContextMenu() {
         contextMenu.removeAllItems()
-        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettingsFromMenu(_:)), keyEquivalent: ",")
+        let settingsItem = NSMenuItem(title: "Settings...", action: #selector(openSettings(_:)), keyEquivalent: ",")
         settingsItem.target = self
         contextMenu.addItem(settingsItem)
         let updatesItem = NSMenuItem(title: "Check for Updates...", action: #selector(checkForUpdates(_:)), keyEquivalent: "")
@@ -100,6 +145,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             .sink { [weak self] _ in
                 Task { @MainActor in
                     self?.updateStatusItem()
+                    self?.resizeVisiblePopoverIfNeeded()
                 }
             }
             .store(in: &cancellables)
@@ -120,7 +166,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         button.attributedTitle = NSAttributedString()
         button.image = image
         button.imagePosition = .imageOnly
-        statusItem?.length = max(36, min(image.size.width + 12, 140))
+        statusItem?.length = max(36, min(image.size.width + 12, 190))
         button.toolTip = "Model Meter"
     }
 
@@ -138,6 +184,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             parts.append("\(label) \(value)")
         }
 
+        if store.geminiEnabled && store.showGeminiInMenuBar {
+            let value = store.menuBarMetric.value(from: store.geminiSnapshot).map { UsageMath.wholePercent($0) } ?? "--"
+            parts.append("G \(value)")
+        }
+
         return parts.isEmpty ? "MM" : parts.joined(separator: "  ")
     }
 
@@ -153,9 +204,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
+            popover.contentSize = dashboardPopoverSize()
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
         }
+    }
+
+    private func resizeVisiblePopoverIfNeeded() {
+        guard popover.isShown else { return }
+        popover.contentSize = dashboardPopoverSize()
     }
 
     private func showSettingsWindow() {
@@ -168,13 +225,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let controller = NSHostingController(
             rootView: SettingsView()
                 .environmentObject(store)
-                .frame(width: 520, height: 560)
+                .frame(width: 640, height: 560)
         )
         let window = NSWindow(contentViewController: controller)
-        window.setContentSize(NSSize(width: 520, height: 560))
-        window.minSize = NSSize(width: 500, height: 520)
+        window.setContentSize(NSSize(width: 640, height: 560))
+        window.minSize = NSSize(width: 560, height: 500)
         window.title = "Settings"
-        window.styleMask = [.titled, .closable, .miniaturizable]
+        window.styleMask = [.titled, .closable, .miniaturizable, .resizable]
         window.isReleasedWhenClosed = false
         window.center()
         settingsWindow = window
@@ -182,7 +239,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         NSApp.activate(ignoringOtherApps: true)
     }
 
-    @objc private func openSettingsFromMenu(_ sender: Any?) {
+    @objc func openSettings(_ sender: Any?) {
         popover.performClose(sender)
         showSettingsWindow()
     }

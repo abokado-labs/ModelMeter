@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		15E7957611297FED9A7AFABF /* UsageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 56E6C348B38E8452FB52A565 /* UsageStore.swift */; };
+		18A0736B3B6F3AF89F2B47CF /* GeminiSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9CA6C58136FF8A931A0267D /* GeminiSignInView.swift */; };
 		22C67BC614396C732A409217 /* ClaudeUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CFF51D1D9A84D34ABE08258 /* ClaudeUsageClient.swift */; };
 		3F9EFD580932783702DACC84 /* DashboardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4039977B267B4B5B23027402 /* DashboardView.swift */; };
 		49FA154A9D79C6991729BDEB /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A97888E1F7DBED67BCEEE3CB /* Assets.xcassets */; };
@@ -16,15 +17,19 @@
 		59DC5E1E1469A5F08128617D /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F9B9E4DE56ED78779F71CAE /* Models.swift */; };
 		5AF0E97E232A75E1AD85442A /* ClaudeSignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1C4F193FCA4C4705D7F1C902 /* ClaudeSignInView.swift */; };
 		5BE3F39451B2126FE5AE803D /* UsageReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6531D935EA2AC79D530D267C /* UsageReader.swift */; };
+		5E574DA9B6B4883401EA4C9B /* google-gemini-logomark-black-24439_32.png in Resources */ = {isa = PBXBuildFile; fileRef = 80A98E3DE9EC18C8494C9924 /* google-gemini-logomark-black-24439_32.png */; };
 		5ED6DFF40DF4A29E2E2BC691 /* CHANGELOG.md in Resources */ = {isa = PBXBuildFile; fileRef = 5BD6D95891E0390409F65937 /* CHANGELOG.md */; };
 		6B909C9631A4D46A0FF5CA62 /* NotificationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = E1F651B29BAFA7D413A32F78 /* NotificationManager.swift */; };
 		6FBE380F9F9500FB253E8B04 /* SettingsStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 83CCB19F17C4CA0CBAE45496 /* SettingsStore.swift */; };
+		89F01AF09C72D5B79274FCD6 /* GeminiSignInWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = AC824549E6C3C5D4943F7E0D /* GeminiSignInWindowManager.swift */; };
 		8C50C7625423474BDF956A34 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B4A3AA77574092B0FC963E4 /* SettingsView.swift */; };
 		98EC68469C067F4961FBE0B8 /* ClaudeSignInWindowManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 51988A395528B3587B1C2D00 /* ClaudeSignInWindowManager.swift */; };
 		AE7EC0D1C2CD5598A93EA4C3 /* MenuBarImageRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = 33DBE50DD18E85A878CBB816 /* MenuBarImageRenderer.swift */; };
 		B35D89D4BE3182CBB27B9F4B /* KeychainStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B5F336D595B4C6D403AA882 /* KeychainStore.swift */; };
 		B61D2922B0B708831D414C2D /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = F369FDD06E5BF057EA8DC63F /* Sparkle */; };
 		BBF77D6D0AF28394A4C82988 /* claude-transparent-custom.png in Resources */ = {isa = PBXBuildFile; fileRef = 8B7212226D68E345240E9BA5 /* claude-transparent-custom.png */; };
+		BE5DF1028210FB1BA09A8C59 /* GeminiUsageClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = B83B4A774C171A448F5C8DF0 /* GeminiUsageClient.swift */; };
+		C00551E88236876E6A76E24C /* GeminiWebSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A7A65D5314F1F8C010EEB7D8 /* GeminiWebSession.swift */; };
 		DE43112B4E878CA9FCA0F592 /* ChatGPT-Logo.png in Resources */ = {isa = PBXBuildFile; fileRef = 6B0EE9F5B74F3310C1EA4E13 /* ChatGPT-Logo.png */; };
 		E4D47BFC59AE736DB6F744B1 /* ModelMeterApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = CCB941469AC2B9CF9262B621 /* ModelMeterApp.swift */; };
 		EF07EDE5B674885383617C51 /* THIRD_PARTY_NOTICES.md in Resources */ = {isa = PBXBuildFile; fileRef = BECB1C3A83FFC60856B533CF /* THIRD_PARTY_NOTICES.md */; };
@@ -44,14 +49,19 @@
 		5BD6D95891E0390409F65937 /* CHANGELOG.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = CHANGELOG.md; sourceTree = "<group>"; };
 		6531D935EA2AC79D530D267C /* UsageReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageReader.swift; sourceTree = "<group>"; };
 		6B0EE9F5B74F3310C1EA4E13 /* ChatGPT-Logo.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "ChatGPT-Logo.png"; sourceTree = "<group>"; };
+		80A98E3DE9EC18C8494C9924 /* google-gemini-logomark-black-24439_32.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "google-gemini-logomark-black-24439_32.png"; sourceTree = "<group>"; };
 		83CCB19F17C4CA0CBAE45496 /* SettingsStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsStore.swift; sourceTree = "<group>"; };
 		8B7212226D68E345240E9BA5 /* claude-transparent-custom.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = "claude-transparent-custom.png"; sourceTree = "<group>"; };
+		A7A65D5314F1F8C010EEB7D8 /* GeminiWebSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiWebSession.swift; sourceTree = "<group>"; };
 		A97888E1F7DBED67BCEEE3CB /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		AC824549E6C3C5D4943F7E0D /* GeminiSignInWindowManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSignInWindowManager.swift; sourceTree = "<group>"; };
+		B83B4A774C171A448F5C8DF0 /* GeminiUsageClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiUsageClient.swift; sourceTree = "<group>"; };
 		BECB1C3A83FFC60856B533CF /* THIRD_PARTY_NOTICES.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = THIRD_PARTY_NOTICES.md; sourceTree = "<group>"; };
 		CCB941469AC2B9CF9262B621 /* ModelMeterApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ModelMeterApp.swift; sourceTree = "<group>"; };
 		D66A3B9237A6A2E580B34C3C /* Model Meter.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Model Meter.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		E1F651B29BAFA7D413A32F78 /* NotificationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationManager.swift; sourceTree = "<group>"; };
 		E5E75BF8CBF6B4079E40CDEE /* PRIVACY.md */ = {isa = PBXFileReference; lastKnownFileType = net.daringfireball.markdown; path = PRIVACY.md; sourceTree = "<group>"; };
+		E9CA6C58136FF8A931A0267D /* GeminiSignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GeminiSignInView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -87,6 +97,10 @@
 				51988A395528B3587B1C2D00 /* ClaudeSignInWindowManager.swift */,
 				1CFF51D1D9A84D34ABE08258 /* ClaudeUsageClient.swift */,
 				4039977B267B4B5B23027402 /* DashboardView.swift */,
+				E9CA6C58136FF8A931A0267D /* GeminiSignInView.swift */,
+				AC824549E6C3C5D4943F7E0D /* GeminiSignInWindowManager.swift */,
+				B83B4A774C171A448F5C8DF0 /* GeminiUsageClient.swift */,
+				A7A65D5314F1F8C010EEB7D8 /* GeminiWebSession.swift */,
 				5B5F336D595B4C6D403AA882 /* KeychainStore.swift */,
 				33DBE50DD18E85A878CBB816 /* MenuBarImageRenderer.swift */,
 				CCB941469AC2B9CF9262B621 /* ModelMeterApp.swift */,
@@ -106,6 +120,7 @@
 			children = (
 				6B0EE9F5B74F3310C1EA4E13 /* ChatGPT-Logo.png */,
 				8B7212226D68E345240E9BA5 /* claude-transparent-custom.png */,
+				80A98E3DE9EC18C8494C9924 /* google-gemini-logomark-black-24439_32.png */,
 			);
 			path = Assets;
 			sourceTree = "<group>";
@@ -189,6 +204,7 @@
 				576D0A9A8D0A68C00FA5ECE4 /* PRIVACY.md in Resources */,
 				EF07EDE5B674885383617C51 /* THIRD_PARTY_NOTICES.md in Resources */,
 				BBF77D6D0AF28394A4C82988 /* claude-transparent-custom.png in Resources */,
+				5E574DA9B6B4883401EA4C9B /* google-gemini-logomark-black-24439_32.png in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -203,6 +219,10 @@
 				98EC68469C067F4961FBE0B8 /* ClaudeSignInWindowManager.swift in Sources */,
 				22C67BC614396C732A409217 /* ClaudeUsageClient.swift in Sources */,
 				3F9EFD580932783702DACC84 /* DashboardView.swift in Sources */,
+				18A0736B3B6F3AF89F2B47CF /* GeminiSignInView.swift in Sources */,
+				89F01AF09C72D5B79274FCD6 /* GeminiSignInWindowManager.swift in Sources */,
+				BE5DF1028210FB1BA09A8C59 /* GeminiUsageClient.swift in Sources */,
+				C00551E88236876E6A76E24C /* GeminiWebSession.swift in Sources */,
 				B35D89D4BE3182CBB27B9F4B /* KeychainStore.swift in Sources */,
 				AE7EC0D1C2CD5598A93EA4C3 /* MenuBarImageRenderer.swift in Sources */,
 				E4D47BFC59AE736DB6F744B1 /* ModelMeterApp.swift in Sources */,
@@ -255,7 +275,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
@@ -288,11 +307,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXECUTABLE_NAME = ModelMeter;
 				INFOPLIST_FILE = ModelMeter/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Model Meter";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobkitchen.ModelMeter;
+				PRODUCT_MODULE_NAME = ModelMeter;
 				PRODUCT_NAME = "Model Meter";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
@@ -309,11 +332,15 @@
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXECUTABLE_NAME = ModelMeter;
 				INFOPLIST_FILE = ModelMeter/Info.plist;
+				INFOPLIST_KEY_CFBundleDisplayName = "Model Meter";
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobkitchen.ModelMeter;
+				PRODUCT_MODULE_NAME = ModelMeter;
 				PRODUCT_NAME = "Model Meter";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 6.0;
@@ -357,7 +384,6 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = "";
 				ENABLE_HARDENED_RUNTIME = YES;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;

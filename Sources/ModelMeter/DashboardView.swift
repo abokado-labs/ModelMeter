@@ -3,18 +3,13 @@ import SwiftUI
 
 struct DashboardView: View {
     @EnvironmentObject private var store: UsageStore
-    @State private var showingSettings = false
 
     var body: some View {
-        Group {
-            if showingSettings {
-                settingsPanel
-            } else {
-                VStack(spacing: 0) {
-                    header
-                    Divider()
-                    ScrollView {
-                        VStack(alignment: .leading, spacing: 14) {
+        VStack(spacing: 0) {
+            header
+            Divider()
+            ScrollView {
+                VStack(alignment: .leading, spacing: 10) {
                             if store.codexEnabled {
                                 ProviderZone(
                                     name: "Codex",
@@ -22,9 +17,9 @@ struct DashboardView: View {
                                     configured: true,
                                     status: store.snapshot.status,
                                     hasData: store.snapshot.rateLimits != nil,
-                                    primaryTitle: "5-hour window",
+                                    primaryTitle: "5-hour",
                                     primaryWindow: store.snapshot.rateLimits?.primary,
-                                    secondaryTitle: "Weekly window",
+                                    secondaryTitle: "Weekly",
                                     secondaryWindow: store.snapshot.rateLimits?.secondary,
                                     metaLeftTitle: "Plan",
                                     metaLeftValue: store.snapshot.rateLimits?.displayPlan ?? "Unknown",
@@ -41,9 +36,9 @@ struct DashboardView: View {
                                     configured: !store.claudeOrganizationID.isEmpty,
                                     status: store.claudeSnapshot.status,
                                     hasData: store.claudeSnapshot.rateLimits != nil,
-                                    primaryTitle: "5-hour window",
+                                    primaryTitle: "5-hour",
                                     primaryWindow: store.claudeSnapshot.rateLimits?.session,
-                                    secondaryTitle: "Weekly window",
+                                    secondaryTitle: "Weekly",
                                     secondaryWindow: store.claudeSnapshot.rateLimits?.weekly,
                                     metaLeftTitle: "Account",
                                     metaLeftValue: claudeAccountText,
@@ -53,43 +48,24 @@ struct DashboardView: View {
                                 )
                             }
 
-                            if !store.codexEnabled && !store.claudeEnabled {
-                                EmptyState(text: "Both providers are switched off in settings.")
+                            if store.geminiEnabled {
+                                GeminiProviderZone(
+                                    snapshot: store.geminiSnapshot,
+                                    configured: geminiConfigured,
+                                    updatedText: geminiUpdatedText
+                                )
                             }
-                        }
-                        .padding(16)
-                    }
-                    Divider()
-                    footer
+
+                            if !store.codexEnabled && !store.claudeEnabled && !store.geminiEnabled {
+                                EmptyState(text: "All providers are switched off in settings.")
+                            }
                 }
+                .padding(12)
             }
+            Divider()
+            footer
         }
         .background(Color(nsColor: .windowBackgroundColor))
-    }
-
-    private var settingsPanel: some View {
-        VStack(spacing: 0) {
-            HStack(spacing: 10) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 18, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                Text("Settings")
-                    .font(.headline)
-                Spacer()
-                Button {
-                    store.saveSettings()
-                    showingSettings = false
-                } label: {
-                    Image(systemName: "checkmark")
-                }
-                .buttonStyle(.borderless)
-                .help("Done")
-            }
-            .padding(16)
-            Divider()
-            SettingsView()
-                .environmentObject(store)
-        }
     }
 
     private var header: some View {
@@ -108,7 +84,8 @@ struct DashboardView: View {
             .buttonStyle(.borderless)
             .help("Refresh")
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
     private var footer: some View {
@@ -118,7 +95,7 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
             Spacer()
             Button {
-                showingSettings = true
+                NSApp.sendAction(#selector(AppDelegate.openSettings(_:)), to: nil, from: nil)
             } label: {
                 Image(systemName: "gearshape")
             }
@@ -133,7 +110,8 @@ struct DashboardView: View {
             .buttonStyle(.borderless)
             .help("Quit")
         }
-        .padding(16)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
     }
 
     private var codexUpdatedText: String {
@@ -143,6 +121,11 @@ struct DashboardView: View {
 
     private var claudeUpdatedText: String {
         guard let updatedAt = store.claudeSnapshot.updatedAt else { return "Not refreshed" }
+        return updatedAt.formatted(date: .omitted, time: .shortened)
+    }
+
+    private var geminiUpdatedText: String {
+        guard let updatedAt = store.geminiSnapshot.updatedAt else { return "Not refreshed" }
         return updatedAt.formatted(date: .omitted, time: .shortened)
     }
 
@@ -161,9 +144,123 @@ struct DashboardView: View {
     }
 
     private var lastUpdatedText: String {
-        let dates = [store.snapshot.updatedAt, store.claudeSnapshot.updatedAt].compactMap { $0 }
+        let dates = [store.snapshot.updatedAt, store.claudeSnapshot.updatedAt, store.geminiSnapshot.updatedAt].compactMap { $0 }
         guard let latest = dates.max() else { return "Not refreshed yet" }
         return "Updated \(latest.formatted(date: .omitted, time: .shortened))"
+    }
+
+    private var geminiConfigured: Bool {
+        !store.geminiSnapshot.items.isEmpty || GeminiWebSession.hasStoredSnapshot
+    }
+}
+
+
+private struct GeminiProviderZone: View {
+    let snapshot: GeminiUsageSnapshot
+    let configured: Bool
+    let updatedText: String
+
+    private var health: ProviderHealth {
+        if !snapshot.items.isEmpty { return .healthy(snapshot.status) }
+        if snapshot.errorMessage != nil { return .error }
+        if configured == false { return .notConfigured }
+        return .waiting
+    }
+
+
+    private var accountText: String {
+        if let accountPlan = snapshot.accountPlan, !accountPlan.isEmpty { return accountPlan }
+        if let accountEmail = snapshot.accountEmail, !accountEmail.isEmpty { return accountEmail }
+        return configured ? "Connected" : "Not connected"
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text("Gemini")
+                    .font(.caption.weight(.semibold))
+                    .textCase(.uppercase)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Label(health.title, systemImage: health.symbolName)
+                    .labelStyle(.iconOnly)
+                    .foregroundStyle(health.color)
+                    .help(health.title)
+            }
+
+            if snapshot.items.isEmpty {
+                Text(configured ? "Waiting for Gemini usage percentages" : "Connect Gemini in settings to read usage percentages from gemini.google.com/usage.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else {
+                HStack(spacing: 10) {
+                    GeminiBalanceTile(title: snapshot.primaryItem?.title ?? "Primary", item: snapshot.primaryItem, tint: .blue)
+                    GeminiBalanceTile(title: snapshot.weeklyItem?.title ?? "Secondary", item: snapshot.weeklyItem, tint: .purple)
+                }
+            }
+
+            HStack(spacing: 10) {
+                MetaTile(title: "Account", value: accountText)
+                MetaTile(title: "Updated", value: updatedText)
+            }
+
+            if let message = snapshot.errorMessage, !message.isEmpty {
+                Text(message)
+                    .font(.caption2)
+                    .foregroundStyle(configured ? .orange : .secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(10)
+        .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
+    }
+}
+
+private struct GeminiBalanceTile: View {
+    let title: String
+    let item: GeminiUsageItem?
+    let tint: Color
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text(title)
+                .font(.caption2.weight(.medium))
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Used")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(item.map { UsageMath.wholePercent($0.usedPercent) } ?? "--")
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                }
+                Spacer(minLength: 4)
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text("Available")
+                        .font(.caption2.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    Text(item.map { UsageMath.wholePercent($0.remainingPercent) } ?? "--")
+                        .font(.title3.weight(.semibold))
+                        .monospacedDigit()
+                }
+            }
+            ProgressView(value: item.map { min(max($0.usedPercent / 100, 0), 1) } ?? 0)
+                .tint(tint)
+            Text(detailText)
+                .font(.caption2)
+                .foregroundStyle(.secondary)
+                .lineLimit(1)
+        }
+        .frame(width: 156, alignment: .leading)
+    }
+
+    private var detailText: String {
+        guard let item else { return "Waiting for status" }
+        guard let detail = item.detail, !detail.isEmpty else { return "Reset not reported" }
+        return detail
     }
 }
 
@@ -192,7 +289,7 @@ private struct ProviderZone: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(name)
                     .font(.caption.weight(.semibold))
@@ -205,12 +302,12 @@ private struct ProviderZone: View {
                     .help(providerHealth.title)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 BalanceTile(title: primaryTitle, window: configured ? primaryWindow : nil, tint: status.color)
                 BalanceTile(title: secondaryTitle, window: configured ? secondaryWindow : nil, tint: .purple)
             }
 
-            HStack(spacing: 12) {
+            HStack(spacing: 10) {
                 MetaTile(title: metaLeftTitle, value: metaLeftValue)
                 MetaTile(title: metaRightTitle, value: metaRightValue)
             }
@@ -222,7 +319,7 @@ private struct ProviderZone: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
-        .padding(12)
+        .padding(10)
         .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8))
     }
 }
@@ -282,7 +379,7 @@ private struct BalanceTile: View {
     let tint: Color
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
+        VStack(alignment: .leading, spacing: 5) {
             Text(title)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
@@ -360,7 +457,7 @@ private struct PaceBar: View {
                 }
             }
         }
-        .frame(height: 20)
+        .frame(height: 18)
     }
 }
 
@@ -369,7 +466,7 @@ private struct MetaTile: View {
     let value: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 3) {
             Text(title)
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)

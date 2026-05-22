@@ -4,10 +4,12 @@ import Foundation
 final class UsageStore: ObservableObject {
     @Published private(set) var snapshot = UsageSnapshot()
     @Published private(set) var claudeSnapshot = ClaudeUsageSnapshot()
+    @Published private(set) var geminiSnapshot = GeminiUsageSnapshot()
     @Published var codexHome: String
     @Published var claudeOrganizationID: String
     @Published var claudeSessionKey: String
     @Published var claudeCfClearance: String
+    @Published var geminiCookieHeader: String
     @Published var sessionLimit: Int
     @Published var dailyLimit: Int
     @Published var weeklyLimit: Int
@@ -20,13 +22,16 @@ final class UsageStore: ObservableObject {
     @Published var menuBarFontSize: MenuBarFontSize
     @Published var codexEnabled: Bool
     @Published var claudeEnabled: Bool
+    @Published var geminiEnabled: Bool
     @Published var showCodexInMenuBar: Bool
     @Published var showClaudeInMenuBar: Bool
+    @Published var showGeminiInMenuBar: Bool
     @Published var paceWarningsEnabled: Bool
 
     private let settings = SettingsStore.shared
     private let reader = UsageReader()
     private let claudeClient = ClaudeUsageClient()
+    private let geminiClient = GeminiUsageClient()
     private var timer: Timer?
     private var lastNotificationStatus: UsageStatus = .unknown
     private var hasStarted = false
@@ -37,6 +42,7 @@ final class UsageStore: ObservableObject {
         claudeOrganizationID = settings.claudeOrganizationID
         claudeSessionKey = ""
         claudeCfClearance = ""
+        geminiCookieHeader = ""
         sessionLimit = settings.sessionLimit
         dailyLimit = settings.dailyLimit
         weeklyLimit = settings.weeklyLimit
@@ -49,8 +55,10 @@ final class UsageStore: ObservableObject {
         menuBarFontSize = settings.menuBarFontSize
         codexEnabled = settings.codexEnabled
         claudeEnabled = settings.claudeEnabled
+        geminiEnabled = settings.geminiEnabled
         showCodexInMenuBar = settings.showCodexInMenuBar
         showClaudeInMenuBar = settings.showClaudeInMenuBar
+        showGeminiInMenuBar = settings.showGeminiInMenuBar
         paceWarningsEnabled = settings.paceWarningsEnabled
     }
 
@@ -61,6 +69,9 @@ final class UsageStore: ObservableObject {
         }
         if claudeEnabled && showClaudeInMenuBar {
             parts.append(menuBarMetric.value(from: claudeSnapshot).map { "Cl \(UsageMath.wholePercent($0))" } ?? "Cl --")
+        }
+        if geminiEnabled && showGeminiInMenuBar {
+            parts.append(menuBarMetric.value(from: geminiSnapshot).map { "G \(UsageMath.wholePercent($0))" } ?? "G --")
         }
         return parts.isEmpty ? "LLM" : parts.joined(separator: "  ")
     }
@@ -74,6 +85,8 @@ final class UsageStore: ObservableObject {
         guard paceWarningsEnabled, let window = menuBarMetric.claudeWindow(from: claudeSnapshot) else { return false }
         return window.isAheadOfPace
     }
+
+    var geminiMenuMetricAheadOfPace: Bool { false }
 
     func start() {
         guard !hasStarted else { return }
@@ -90,6 +103,12 @@ final class UsageStore: ObservableObject {
         if claudeEnabled && !claudeOrganizationID.isEmpty {
             Task {
                 await refreshClaude()
+            }
+        }
+
+        if geminiEnabled {
+            Task {
+                await refreshGemini()
             }
         }
     }
@@ -140,6 +159,12 @@ final class UsageStore: ObservableObject {
         )
     }
 
+    func resetGeminiCredentials() {
+        Task { await GeminiWebSession.shared.clearSession() }
+        geminiCookieHeader = ""
+        geminiSnapshot = GeminiUsageSnapshot(updatedAt: Date())
+    }
+
     private func persistSettings() {
         settings.codexHome = codexHome
         settings.claudeOrganizationID = claudeOrganizationID
@@ -166,8 +191,10 @@ final class UsageStore: ObservableObject {
         settings.menuBarFontSize = menuBarFontSize
         settings.codexEnabled = codexEnabled
         settings.claudeEnabled = claudeEnabled
+        settings.geminiEnabled = geminiEnabled
         settings.showCodexInMenuBar = showCodexInMenuBar
         settings.showClaudeInMenuBar = showClaudeInMenuBar
+        settings.showGeminiInMenuBar = showGeminiInMenuBar
         settings.paceWarningsEnabled = paceWarningsEnabled
     }
 
@@ -193,6 +220,38 @@ final class UsageStore: ObservableObject {
             title: "Codex usage \(UsageMath.percent(progress))",
             body: "Codex reports \(UsageMath.wholePercent(100 - (progress * 100))) remaining in the most constrained window."
         )
+    }
+
+
+    private func refreshGemini() async {
+        do {
+            geminiSnapshot = try await geminiClient.fetch()
+        } catch {
+            if !geminiSnapshot.items.isEmpty {
+                geminiSnapshot = GeminiUsageSnapshot(
+                    items: geminiSnapshot.items,
+                    updatedAt: geminiSnapshot.updatedAt,
+                    errorMessage: error.localizedDescription
+                )
+            } else {
+                geminiSnapshot = GeminiUsageSnapshot(
+                    updatedAt: Date(),
+                    errorMessage: error.localizedDescription
+                )
+            }
+        }
+    }
+
+    func refreshGeminiNow() {
+        Task { await refreshGemini() }
+    }
+
+    func completeGeminiSignIn(snapshot: GeminiUsageSnapshot) async {
+        geminiCookieHeader = ""
+        geminiEnabled = true
+        showGeminiInMenuBar = true
+        geminiSnapshot = snapshot
+        persistSettings()
     }
 
     private func refreshClaude() async {

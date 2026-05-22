@@ -20,8 +20,10 @@ final class SettingsStore: @unchecked Sendable {
         static let claudeOrganizationID = "claudeOrganizationID"
         static let codexEnabled = "codexEnabled"
         static let claudeEnabled = "claudeEnabled"
+        static let geminiEnabled = "geminiEnabled"
         static let showCodexInMenuBar = "showCodexInMenuBar"
         static let showClaudeInMenuBar = "showClaudeInMenuBar"
+        static let showGeminiInMenuBar = "showGeminiInMenuBar"
         static let paceWarningsEnabled = "paceWarningsEnabled"
     }
 
@@ -44,6 +46,11 @@ final class SettingsStore: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.claudeEnabled) }
     }
 
+    var geminiEnabled: Bool {
+        get { defaults.object(forKey: Key.geminiEnabled) as? Bool ?? false }
+        set { defaults.set(newValue, forKey: Key.geminiEnabled) }
+    }
+
     var showCodexInMenuBar: Bool {
         get { defaults.object(forKey: Key.showCodexInMenuBar) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.showCodexInMenuBar) }
@@ -52,6 +59,11 @@ final class SettingsStore: @unchecked Sendable {
     var showClaudeInMenuBar: Bool {
         get { defaults.object(forKey: Key.showClaudeInMenuBar) as? Bool ?? true }
         set { defaults.set(newValue, forKey: Key.showClaudeInMenuBar) }
+    }
+
+    var showGeminiInMenuBar: Bool {
+        get { defaults.object(forKey: Key.showGeminiInMenuBar) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.showGeminiInMenuBar) }
     }
 
 

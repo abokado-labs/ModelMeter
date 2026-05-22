@@ -12,7 +12,6 @@ enum KeychainStore {
     private static let claudeCredentialsAccount = "claudeCredentials"
     private static let legacySessionKeyAccount = "claudeSessionKey"
     private static let legacyClearanceAccount = "claudeCfClearance"
-
     static func readClaudeCredentials(allowPrompt: Bool = false) -> ClaudeCredentials {
         if let value = read(account: claudeCredentialsAccount, service: service, allowPrompt: allowPrompt),
            let data = value.data(using: .utf8),

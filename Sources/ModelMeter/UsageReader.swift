@@ -59,6 +59,11 @@ final class UsageReader: Sendable {
         }
     }
 
+    private struct RateLimitCandidate {
+        let snapshot: CodexRateLimits
+        let isPlaceholder: Bool
+    }
+
     private struct SumRow: Decodable {
         let tokens: Int?
         let threads: Int?
@@ -227,15 +232,28 @@ final class UsageReader: Sendable {
             modificationDate(lhs) > modificationDate(rhs)
         }
 
-        for file in files.prefix(40) {
-            if let snapshot = latestRateLimits(in: file) {
-                return snapshot
+        var newestReal: CodexRateLimits?
+        var newestPlaceholder: CodexRateLimits?
+
+        for file in files.prefix(80) {
+            guard let candidate = latestRateLimitCandidate(in: file) else { continue }
+            if candidate.isPlaceholder {
+                if newestPlaceholder == nil || candidate.snapshot.capturedAt > newestPlaceholder!.capturedAt {
+                    newestPlaceholder = candidate.snapshot
+                }
+            } else if newestReal == nil || candidate.snapshot.capturedAt > newestReal!.capturedAt {
+                newestReal = candidate.snapshot
             }
         }
-        return nil
+
+        return newestReal ?? newestPlaceholder
     }
 
     private func latestRateLimits(in fileURL: URL) -> CodexRateLimits? {
+        latestRateLimitCandidate(in: fileURL)?.snapshot
+    }
+
+    private func latestRateLimitCandidate(in fileURL: URL) -> RateLimitCandidate? {
         guard let data = try? Data(contentsOf: fileURL),
               let text = String(data: data, encoding: .utf8)
         else {
@@ -243,7 +261,7 @@ final class UsageReader: Sendable {
         }
 
         let decoder = JSONDecoder()
-        var fallback: CodexRateLimits?
+        var fallback: RateLimitCandidate?
         for line in text.split(separator: "\n", omittingEmptySubsequences: true).reversed() {
             guard line.contains(#""payload":{"type":"token_count""#) else {
                 continue
@@ -268,13 +286,15 @@ final class UsageReader: Sendable {
                 capturedAt: capturedAt,
                 sourcePath: fileURL.path
             )
+            let isPlaceholder = isEmptyPlaceholder(primary: primary, secondary: secondary, capturedAt: capturedAt)
+            let candidate = RateLimitCandidate(snapshot: snapshot, isPlaceholder: isPlaceholder)
 
-            if isEmptyPlaceholder(primary: primary, secondary: secondary, capturedAt: capturedAt) {
-                fallback = fallback ?? snapshot
+            if isPlaceholder {
+                fallback = fallback ?? candidate
                 continue
             }
 
-            return snapshot
+            return candidate
         }
         return fallback
     }

@@ -3,48 +3,153 @@ import SwiftUI
 
 struct SettingsView: View {
     @EnvironmentObject private var store: UsageStore
+    @State private var selectedTab: SettingsTab = .providers
 
     var body: some View {
-        Form {
-            Section("Providers") {
-                Toggle("Enable Codex", isOn: $store.codexEnabled)
+        VStack(spacing: 0) {
+            HStack(spacing: 0) {
+                sidebar
+                Divider()
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 18) {
+                        Text(selectedTab.title)
+                            .font(.title2.weight(.semibold))
+                        selectedContent
+                    }
+                    .padding(24)
+                    .frame(maxWidth: .infinity, alignment: .topLeading)
+                }
+            }
+            Divider()
+            footer
+        }
+        .frame(minWidth: 560, minHeight: 500)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var sidebar: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text("Settings")
+                .font(.headline)
+                .padding(.horizontal, 10)
+                .padding(.bottom, 8)
+
+            ForEach(SettingsTab.allCases) { tab in
+                Button {
+                    selectedTab = tab
+                } label: {
+                    Label(tab.title, systemImage: tab.systemImage)
+                        .font(.callout.weight(selectedTab == tab ? .semibold : .regular))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 8)
+                        .background(
+                            selectedTab == tab ? Color.accentColor.opacity(0.18) : Color.clear,
+                            in: RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        )
+                }
+                .buttonStyle(.plain)
+            }
+
+            Spacer()
+        }
+        .padding(12)
+        .frame(width: 180)
+        .background(Color(nsColor: .controlBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var selectedContent: some View {
+        switch selectedTab {
+        case .providers:
+            providersTab
+        case .menuBar:
+            menuBarTab
+        case .updatesPrivacy:
+            updatesPrivacyTab
+        }
+    }
+
+    private var providersTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SettingsSection("Codex") {
+                providerToggle(title: "Codex", isOn: $store.codexEnabled)
+                setupSteps([
+                    "Install and use Codex normally on this Mac.",
+                    "Leave the Codex home folder pointed at your local `.codex` directory.",
+                    "Click Save and Refresh after changing the folder."
+                ])
                 TextField("Codex home", text: $store.codexHome)
                     .disabled(!store.codexEnabled)
-                Text("Codex reads local rate-limit snapshots and `state_5.sqlite` from this folder.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                helperText("Reads local Codex rate-limit snapshots and `state_5.sqlite` from this folder. No OpenAI password or API key is stored by Model Meter.")
+            }
 
-                Toggle("Enable Claude", isOn: $store.claudeEnabled)
-                Button {
+            SettingsSection("Claude") {
+                providerToggle(title: "Claude", isOn: $store.claudeEnabled)
+                setupSteps([
+                    "Click Sign in with Claude and complete Claude's login flow.",
+                    "When the Claude window reaches the signed-in Claude app, click Use This Session.",
+                    "Click Save and Refresh to update the dashboard and menu bar."
+                ])
+                settingsButton("Sign in with Claude", systemImage: "person.crop.circle.badge.checkmark") {
                     ClaudeSignInWindowManager.shared.open(store: store)
-                } label: {
-                    Label("Sign in with Claude", systemImage: "person.crop.circle.badge.checkmark")
                 }
                 .disabled(!store.claudeEnabled)
                 TextField("Organization ID", text: $store.claudeOrganizationID)
                     .disabled(!store.claudeEnabled)
                 SecureField("Session key", text: $store.claudeSessionKey)
                     .disabled(!store.claudeEnabled)
-                Button(role: .destructive) {
+                settingsButton("Reset Claude credentials", systemImage: "key.slash") {
                     store.resetClaudeCredentials()
-                } label: {
-                    Label("Reset Claude credentials", systemImage: "key.slash")
                 }
                 .disabled(!store.claudeEnabled)
                 if let error = store.claudeSnapshot.errorMessage, store.claudeEnabled, (!store.claudeOrganizationID.isEmpty || !store.claudeSessionKey.isEmpty) {
-                    Text(error)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
+                    statusText(error, style: .warning)
                 }
             }
 
+            SettingsSection("Gemini") {
+                providerToggle(title: "Gemini", isOn: $store.geminiEnabled)
+                GeminiSetupStatus(isConnected: geminiWebSessionAvailable, updatedAt: store.geminiSnapshot.updatedAt)
+                    .disabled(!store.geminiEnabled)
+                setupSteps([
+                    "Click Sign in to Gemini. Model Meter opens its own secure WebKit login window, separate from Safari.",
+                    "Sign in with the Google account that has your Gemini plan.",
+                    "Wait until the Gemini Usage limits page is fully visible with Current usage and Weekly limit.",
+                    "Click Connect in that window, then click Save and Refresh here."
+                ])
+                helperText("Gemini is refreshed from gemini.google.com/usage through the embedded WebKit session. Model Meter stores only parsed usage percentages and reset times, not your Google password.")
+                HStack(spacing: 8) {
+                    settingsButton("Sign in to Gemini", systemImage: "person.crop.circle.badge.checkmark") {
+                        GeminiSignInWindowManager.shared.open(store: store)
+                    }
+                    settingsButton("Refresh Gemini", systemImage: "arrow.clockwise") {
+                        store.refreshGeminiNow()
+                    }
+                    settingsButton("Reset Gemini session", systemImage: "trash") {
+                        store.resetGeminiCredentials()
+                    }
+                }
+                .disabled(!store.geminiEnabled)
+                if let error = store.geminiSnapshot.errorMessage, store.geminiEnabled {
+                    statusText(error, style: .warning)
+                }
+            }
+        }
+    }
 
-            Section("Menu bar") {
+    private var menuBarTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SettingsSection("Provider Visibility") {
                 Toggle("Show Codex in menu bar", isOn: $store.showCodexInMenuBar)
                     .disabled(!store.codexEnabled)
                 Toggle("Show Claude in menu bar", isOn: $store.showClaudeInMenuBar)
                     .disabled(!store.claudeEnabled)
+                Toggle("Show Gemini in menu bar", isOn: $store.showGeminiInMenuBar)
+                    .disabled(!store.geminiEnabled)
+            }
 
+            SettingsSection("Display") {
                 Picker("Metric", selection: $store.menuBarMetric) {
                     ForEach(MenuBarMetric.allCases) { metric in
                         Text(metric.title).tag(metric)
@@ -71,45 +176,116 @@ struct SettingsView: View {
                     }
                 }
                 .pickerStyle(.segmented)
+            }
 
-                Toggle("Warn when ahead of pace", isOn: $store.paceWarningsEnabled)
-                Text("Turns a menu bar value red when the selected usage metric is above the time elapsed in its reset window. The time marker remains visible on each bar either way.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            SettingsSection("Pace Warning") {
+                Toggle("Warn when usage is ahead of pace", isOn: $store.paceWarningsEnabled)
+                helperText("Turns a menu bar value red when usage is ahead of the time elapsed in its reset window. The time marker remains visible on each bar.")
+            }
 
+            SettingsSection("Preview") {
                 SettingValueRow(title: "Current menu bar", value: store.menuTitle)
             }
+        }
+    }
 
-            Section("About & Privacy") {
+    private var updatesPrivacyTab: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            SettingsSection("Updates") {
                 SettingValueRow(title: "Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
-                Button {
+                settingsButton("Check for Updates", systemImage: "arrow.triangle.2.circlepath") {
                     checkForUpdates()
-                } label: {
-                    Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
-                }
-                Text("Model Meter is a local-first usage tracker from Abokado Labs. It is not affiliated with OpenAI, Anthropic, Claude, ChatGPT, Codex, or Apple.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Text("Codex data is read from local files. Claude credentials are stored in macOS Keychain and are used only for Claude usage checks.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                HStack {
-                    Button("Privacy") { openDocument("PRIVACY") }
-                    Button("Licenses") { openDocument("THIRD_PARTY_NOTICES") }
-                    Button("Website") { openURL("https://abokadolabs.com/") }
                 }
             }
 
-            HStack {
-                Spacer()
-                Button("Save and Refresh") {
-                    store.saveSettings()
+            SettingsSection("Privacy") {
+                helperText("Model Meter is a local-first usage tracker from Abokado Labs. It is not affiliated with OpenAI, Anthropic, Google, Gemini, Claude, ChatGPT, Codex, or Apple.")
+                helperText("Codex data is read from local files. Claude credentials are stored in macOS Keychain. Gemini web usage is refreshed through an embedded WebKit session. Only parsed usage percentages and reset times are stored locally.")
+            }
+
+            SettingsSection("Links") {
+                HStack(spacing: 8) {
+                    settingsButton("Privacy", systemImage: "lock.shield") { openDocument("PRIVACY") }
+                    settingsButton("Licenses", systemImage: "doc.text") { openDocument("THIRD_PARTY_NOTICES") }
+                    settingsButton("Website", systemImage: "globe") { openURL("https://abokadolabs.com/") }
                 }
-                .keyboardShortcut(.defaultAction)
             }
         }
-        .formStyle(.grouped)
-        .padding(20)
+    }
+
+    private var footer: some View {
+        HStack {
+            Text("Changes are applied when you save and refresh.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+            Spacer()
+            settingsButton("Save and Refresh", systemImage: "checkmark") {
+                store.saveSettings()
+            }
+            .keyboardShortcut(.defaultAction)
+        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 12)
+        .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    private var geminiWebSessionAvailable: Bool {
+        !store.geminiSnapshot.items.isEmpty || GeminiWebSession.hasStoredSnapshot
+    }
+
+    private func providerToggle(title: String, isOn: Binding<Bool>) -> some View {
+        Toggle("Enable \(title)", isOn: isOn)
+            .font(.headline)
+    }
+
+
+    private func setupSteps(_ steps: [String]) -> some View {
+        VStack(alignment: .leading, spacing: 5) {
+            Text("How to connect")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ForEach(Array(steps.enumerated()), id: \.offset) { index, step in
+                HStack(alignment: .top, spacing: 7) {
+                    Text("\(index + 1).")
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                        .frame(width: 18, alignment: .trailing)
+                    Text(step)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+        }
+        .padding(10)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(Color(nsColor: .textBackgroundColor).opacity(0.35), in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+    }
+
+    private func helperText(_ message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func statusText(_ message: String, style: StatusStyle) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(style == .success ? .green : .orange)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    private func settingsButton(_ title: String, systemImage: String, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            Label(title, systemImage: systemImage)
+                .font(.callout)
+                .foregroundStyle(.primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(Color.white.opacity(0.10), in: RoundedRectangle(cornerRadius: 6, style: .continuous))
+        }
+        .buttonStyle(.plain)
     }
 
     private func checkForUpdates() {
@@ -130,6 +306,86 @@ struct SettingsView: View {
     }
 }
 
+private enum SettingsTab: CaseIterable, Identifiable {
+    case providers
+    case menuBar
+    case updatesPrivacy
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .providers: return "Providers"
+        case .menuBar: return "Menu Bar"
+        case .updatesPrivacy: return "Updates & Privacy"
+        }
+    }
+
+    var systemImage: String {
+        switch self {
+        case .providers: return "server.rack"
+        case .menuBar: return "menubar.rectangle"
+        case .updatesPrivacy: return "lock.shield"
+        }
+    }
+}
+
+private struct SettingsSection<Content: View>: View {
+    let title: String
+    let content: Content
+
+    init(_ title: String, @ViewBuilder content: () -> Content) {
+        self.title = title
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(title)
+                .font(.headline)
+            VStack(alignment: .leading, spacing: 10) {
+                content
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(Color(nsColor: .controlBackgroundColor), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+private struct GeminiSetupStatus: View {
+    let isConnected: Bool
+    let updatedAt: Date?
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Image(systemName: isConnected ? "checkmark.circle.fill" : "exclamationmark.triangle.fill")
+                .foregroundStyle(isConnected ? .green : .orange)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(isConnected ? "Gemini Web Session connected" : "Gemini sign-in required")
+                    .font(.subheadline.weight(.semibold))
+                Text(statusText)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Spacer()
+        }
+    }
+
+    private var statusText: String {
+        if let updatedAt {
+            return "Last captured " + updatedAt.formatted(date: .omitted, time: .shortened)
+        }
+        return "Sign in with Google in Model Meter's WebKit window. Safari is not required."
+    }
+}
+
+private enum StatusStyle {
+    case success
+    case warning
+}
+
 private struct SettingValueRow: View {
     let title: String
     let value: String
@@ -142,5 +398,6 @@ private struct SettingValueRow: View {
                 .monospacedDigit()
                 .foregroundStyle(.secondary)
         }
+        .frame(maxWidth: .infinity)
     }
 }

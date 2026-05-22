@@ -8,6 +8,13 @@ Model Meter is not affiliated with, endorsed by, or sponsored by OpenAI. OpenAI,
 
 The app may display an optional ChatGPT/OpenAI-style provider icon supplied by the user/project assets. Users can choose letter labels instead of icons in Settings.
 
+
+## Google / Gemini
+
+Model Meter is not affiliated with, endorsed by, or sponsored by Google. Google and Gemini are trademarks or service marks of Google LLC or its affiliates.
+
+Gemini support reads usage percentages from the signed-in user's Gemini usage page when the user explicitly enables and connects Gemini.
+
 ## Anthropic / Claude
 
 Model Meter is not affiliated with, endorsed by, or sponsored by Anthropic. Anthropic and Claude are trademarks or service marks of Anthropic, PBC or its affiliates.
@@ -16,12 +23,9 @@ The app may display an optional Claude provider icon supplied by the user/projec
 
 ## Claude Usage Tracker Reference
 
-During development, Model Meter referenced behavior and workflow ideas from:
+During development, Model Meter referenced workflow ideas from `hamed-elfayome/Claude-Usage-Tracker`, including the general pattern of a macOS menu bar usage tracker and Claude session-based usage display. Model Meter does not vendor or incorporate source code from that project.
 
-- `hamed-elfayome/Claude-Usage-Tracker`
-- https://github.com/hamed-elfayome/Claude-Usage-Tracker
-
-If code from that project is incorporated into Model Meter, retain its original copyright notice and MIT license terms here before public distribution.
+Reference: https://github.com/hamed-elfayome/Claude-Usage-Tracker
 
 ## Apple
 

@@ -64,7 +64,12 @@ enum MenuBarImageRenderer {
                 for (index, part) in parts.enumerated() {
                     if index > 0 { x += partGap }
                     if labelStyle == .icons, let provider = part.provider, let icon = providerImage(provider, size: providerIconSize) {
-                        let iconRect = NSRect(x: x, y: (rect.height - providerIconSize) / 2, width: providerIconSize, height: providerIconSize)
+                        let iconRect = providerIconRect(
+                            provider: provider,
+                            x: x,
+                            containerHeight: rect.height,
+                            size: providerIconSize
+                        )
                         drawTemplateIcon(icon, in: iconRect, color: .labelColor)
                         x += providerIconSize + 3
                     } else {
@@ -95,6 +100,7 @@ enum MenuBarImageRenderer {
     private enum Provider {
         case codex
         case claude
+        case gemini
     }
 
     private static func parse(title: String) -> [MenuBarPart] {
@@ -110,6 +116,10 @@ enum MenuBarImageRenderer {
                 return MenuBarPart(provider: .codex, label: "C", value: fields[1], warning: true)
             case "Cl!":
                 return MenuBarPart(provider: .claude, label: "Cl", value: fields[1], warning: true)
+            case "G":
+                return MenuBarPart(provider: .gemini, label: "G", value: fields[1], warning: false)
+            case "G!":
+                return MenuBarPart(provider: .gemini, label: "G", value: fields[1], warning: true)
             default:
                 return nil
             }
@@ -123,8 +133,34 @@ enum MenuBarImageRenderer {
         ]
     }
 
+    private static func providerIconRect(provider: Provider, x: CGFloat, containerHeight: CGFloat, size: CGFloat) -> NSRect {
+        let yOffset: CGFloat
+        switch provider {
+        case .codex:
+            yOffset = 0
+        case .claude:
+            yOffset = 0
+        case .gemini:
+            yOffset = 1.5
+        }
+        return NSRect(
+            x: x,
+            y: round((containerHeight - size) / 2) + yOffset,
+            width: size,
+            height: size
+        )
+    }
+
     private static func providerImage(_ provider: Provider, size: CGFloat) -> NSImage? {
-        let resourceName = provider == .codex ? "ChatGPT-Logo" : "claude-transparent-custom"
+        let resourceName: String
+        switch provider {
+        case .codex:
+            resourceName = "ChatGPT-Logo"
+        case .claude:
+            resourceName = "claude-transparent-custom"
+        case .gemini:
+            resourceName = "google-gemini-logomark-black-24439_32"
+        }
         guard let url = Bundle.main.url(forResource: resourceName, withExtension: "png"),
               let source = NSImage(contentsOf: url)
         else {

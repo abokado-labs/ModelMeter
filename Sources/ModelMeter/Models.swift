@@ -31,6 +31,30 @@ struct ClaudeUsageSnapshot {
     var status: UsageStatus { UsageStatus(progress: max(sessionProgress, weeklyProgress)) }
 }
 
+struct GeminiUsageSnapshot {
+    var items: [GeminiUsageItem] = []
+    var updatedAt: Date?
+    var errorMessage: String?
+    var accountEmail: String?
+    var accountPlan: String?
+
+    var primaryItem: GeminiUsageItem? { items.first { $0.id == "current-usage" } ?? items.first }
+    var weeklyItem: GeminiUsageItem? { items.first { $0.id == "weekly-limit" } ?? items.dropFirst().first }
+    var status: UsageStatus {
+        let usedValues = items.map { $0.usedPercent / 100 }
+        return UsageStatus(progress: usedValues.max() ?? -1)
+    }
+}
+
+struct GeminiUsageItem: Identifiable, Hashable {
+    let id: String
+    let title: String
+    let usedPercent: Double
+    let detail: String?
+
+    var remainingPercent: Double { max(100 - usedPercent, 0) }
+}
+
 struct ThreadUsage: Identifiable, Decodable {
     let id: String
     let title: String
@@ -176,6 +200,19 @@ enum MenuBarMetric: String, CaseIterable, Identifiable {
             return rateLimits.weekly.usedPercent
         case .sevenDayAvailable:
             return rateLimits.weekly.remainingPercent
+        }
+    }
+
+    func value(from snapshot: GeminiUsageSnapshot) -> Double? {
+        switch self {
+        case .fiveHourUsed:
+            return snapshot.primaryItem?.usedPercent
+        case .fiveHourAvailable:
+            return snapshot.primaryItem?.remainingPercent
+        case .sevenDayUsed:
+            return snapshot.weeklyItem?.usedPercent
+        case .sevenDayAvailable:
+            return snapshot.weeklyItem?.remainingPercent
         }
     }
 
