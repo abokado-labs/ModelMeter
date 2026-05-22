@@ -304,6 +304,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ModelMeter/ModelMeter.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXECUTABLE_NAME = ModelMeter;
 				INFOPLIST_FILE = ModelMeter/Info.plist;
@@ -313,7 +314,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobkitchen.ModelMeter;
 				PRODUCT_MODULE_NAME = ModelMeter;
 				PRODUCT_NAME = "Model Meter";
@@ -328,6 +329,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ModelMeter/ModelMeter.entitlements;
 				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 3;
 				DEVELOPMENT_TEAM = ZW6EQ2JWKC;
 				ENABLE_HARDENED_RUNTIME = YES;
 				EXECUTABLE_NAME = ModelMeter;
@@ -338,7 +340,7 @@
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 1.1;
+				MARKETING_VERSION = 1.1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = com.bobkitchen.ModelMeter;
 				PRODUCT_MODULE_NAME = ModelMeter;
 				PRODUCT_NAME = "Model Meter";

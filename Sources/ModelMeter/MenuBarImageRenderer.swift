@@ -185,6 +185,7 @@ enum MenuBarImageRenderer {
     }
 
     private static func textBaselineY(font: NSFont, height: CGFloat) -> CGFloat {
-        floor((height - font.ascender + font.descender) / 2 - font.descender)
+        // Menu bar text looks optically high when mathematically centered next to template icons.
+        floor((height - font.ascender + font.descender) / 2 - font.descender - 1)
     }
 }

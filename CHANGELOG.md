@@ -1,6 +1,16 @@
 # Changelog
 
-## 1.1.0 - Unreleased
+## 1.1.1 - 2026-05-22
+
+Small typographic fix for the menu-bar readout.
+
+### Fixed
+- Menu-bar text was rendering one pixel high relative to the provider icons next to it — mathematically centered but optically off because of the icons' template rendering. Baseline calculation now nudges the text down by one pixel so it sits visually flush with the icons.
+
+### Notes
+- No functional or behavioral change. If you're on 1.1.0 and you're happy with the alignment, this release is purely cosmetic.
+
+## 1.1.0 - 2026-05-22
 
 Adds a third provider and overhauls the settings experience.
 
