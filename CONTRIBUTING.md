@@ -38,7 +38,7 @@ You need:
 Clone and open:
 
 ```bash
-git clone https://github.com/bobkitchen/ModelMeter.git
+git clone https://github.com/abokado-labs/ModelMeter.git
 cd ModelMeter
 open ModelMeter.xcodeproj
 ```
