@@ -74,14 +74,27 @@ struct SettingsView: View {
         VStack(alignment: .leading, spacing: 16) {
             SettingsSection("Codex") {
                 providerToggle(title: "Codex", isOn: $store.codexEnabled)
+                Picker("Data source", selection: $store.codexDataSource) {
+                    ForEach(CodexDataSource.allCases) { source in
+                        Text(source.title).tag(source)
+                    }
+                }
+                .pickerStyle(.segmented)
+                .disabled(!store.codexEnabled)
+                helperText(store.codexDataSource.detail)
                 setupSteps([
-                    "Install and use Codex normally on this Mac.",
-                    "Leave the Codex home folder pointed at your local `.codex` directory.",
-                    "Click Save and Refresh after changing the folder."
+                    "For Live ChatGPT, install Codex and sign in with your ChatGPT account using the normal Codex app or CLI.",
+                    "Leave Codex home pointed at the folder containing `auth.json`, normally `~/.codex`.",
+                    "For Local Codex files, Model Meter reads Codex session snapshots and `state_5.sqlite` from the same folder.",
+                    "Click Save and Refresh after changing the data source or folder."
                 ])
                 TextField("Codex home", text: $store.codexHome)
                     .disabled(!store.codexEnabled)
-                helperText("Reads local Codex rate-limit snapshots and `state_5.sqlite` from this folder. No OpenAI password or API key is stored by Model Meter.")
+                helperText("Live ChatGPT does not store your OpenAI password or API key; it uses Codex's existing `auth.json`. Local Codex files avoids network calls but may be stale or incomplete.")
+                SettingValueRow(title: "Current source", value: store.snapshot.rateLimits?.sourceLabel ?? "Not refreshed")
+                if let error = store.snapshot.errorMessage, store.codexEnabled {
+                    statusText(error, style: .warning)
+                }
             }
 
             SettingsSection("Claude") {
@@ -200,7 +213,7 @@ struct SettingsView: View {
 
             SettingsSection("Privacy") {
                 helperText("Model Meter is a local-first usage tracker from Abokado Labs. It is not affiliated with OpenAI, Anthropic, Google, Gemini, Claude, ChatGPT, Codex, or Apple.")
-                helperText("Codex data is read from local files. Claude credentials are stored in macOS Keychain. Gemini web usage is refreshed through an embedded WebKit session. Only parsed usage percentages and reset times are stored locally.")
+                helperText("Codex can be refreshed either from Codex's existing ChatGPT OAuth session or from local Codex files, depending on the selected Codex data source. Claude credentials are stored in macOS Keychain. Gemini web usage is refreshed through an embedded WebKit session. Only parsed usage percentages and reset times are stored locally.")
             }
 
             SettingsSection("Links") {

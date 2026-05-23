@@ -2,6 +2,31 @@ import AppKit
 import Foundation
 import SwiftUI
 
+enum CodexDataSource: String, CaseIterable, Identifiable {
+    case liveOAuth
+    case localFiles
+
+    var id: Self { self }
+
+    var title: String {
+        switch self {
+        case .liveOAuth:
+            return "Live ChatGPT"
+        case .localFiles:
+            return "Local Codex files"
+        }
+    }
+
+    var detail: String {
+        switch self {
+        case .liveOAuth:
+            return "Uses Codex's ChatGPT login in auth.json to request live 5-hour and weekly balances."
+        case .localFiles:
+            return "Reads Codex's local session snapshots and state_5.sqlite. This can lag or miss live balance changes."
+        }
+    }
+}
+
 struct UsageSnapshot {
     var sessionTokens: Int = 0
     var weeklyTokens: Int = 0
@@ -83,6 +108,23 @@ struct CodexRateLimits {
     var displayPlan: String {
         guard let planType, !planType.isEmpty else { return "Unknown plan" }
         return planType
+    }
+
+    var sourceLabel: String {
+        if sourcePath == "codex oauth wham/usage" { return "ChatGPT OAuth live usage" }
+        if sourcePath == "codex app-server" { return "Codex app-server" }
+        if sourcePath.hasPrefix("/") { return "Local Codex fallback" }
+        return sourcePath
+    }
+
+    var isLocalFallback: Bool {
+        sourcePath.hasPrefix("/")
+    }
+
+    var isLikelyPlaceholder: Bool {
+        guard isLocalFallback, planType == nil || planType?.isEmpty == true else { return false }
+        guard primary.usedPercent == 0, secondary.usedPercent == 0 else { return false }
+        return true
     }
 }
 

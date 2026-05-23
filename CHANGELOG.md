@@ -1,5 +1,20 @@
 # Changelog
 
+## 1.1.2 - 2026-05-23
+
+Improves Codex balance tracking and makes the data source explicit.
+
+### Added
+- Codex data source selector in Settings with `Live ChatGPT` and `Local Codex files` options.
+- Xcode logging for the selected Codex route and live refresh result.
+
+### Changed
+- Codex now defaults to the live ChatGPT usage route for current 5-hour and weekly balances.
+- Local Codex file reading remains available as an explicit fallback.
+
+### Fixed
+- Codex could show no reading or fall back to stale local data even when the live usage endpoint was returning valid balances.
+
 ## 1.1.1 - 2026-05-22
 
 Small typographic fix for the menu-bar readout.

@@ -25,7 +25,7 @@ struct DashboardView: View {
                                     metaLeftValue: store.snapshot.rateLimits?.displayPlan ?? "Unknown",
                                     metaRightTitle: "Updated",
                                     metaRightValue: codexUpdatedText,
-                                    message: store.snapshot.errorMessage
+                                    message: codexMessage
                                 )
                             }
 
@@ -117,6 +117,13 @@ struct DashboardView: View {
     private var codexUpdatedText: String {
         guard let updatedAt = store.snapshot.rateLimits?.capturedAt ?? store.snapshot.updatedAt else { return "Not refreshed" }
         return updatedAt.formatted(date: .omitted, time: .shortened)
+    }
+
+    private var codexMessage: String? {
+        if let error = store.snapshot.errorMessage, !error.isEmpty { return error }
+        guard let rateLimits = store.snapshot.rateLimits else { return nil }
+        if rateLimits.sourcePath == "codex oauth wham/usage" { return nil }
+        return "Source: \(rateLimits.sourceLabel)"
     }
 
     private var claudeUpdatedText: String {

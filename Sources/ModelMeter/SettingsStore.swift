@@ -7,6 +7,7 @@ final class SettingsStore: @unchecked Sendable {
 
     private enum Key {
         static let codexHome = "codexHome"
+        static let codexDataSource = "codexDataSource"
         static let sessionLimit = "sessionLimit"
         static let dailyLimit = "dailyLimit"
         static let weeklyLimit = "weeklyLimit"
@@ -35,6 +36,17 @@ final class SettingsStore: @unchecked Sendable {
         set { defaults.set(newValue, forKey: Key.codexHome) }
     }
 
+    var codexDataSource: CodexDataSource {
+        get {
+            guard let rawValue = defaults.string(forKey: Key.codexDataSource),
+                  let source = CodexDataSource(rawValue: rawValue)
+            else {
+                return .liveOAuth
+            }
+            return source
+        }
+        set { defaults.set(newValue.rawValue, forKey: Key.codexDataSource) }
+    }
 
     var codexEnabled: Bool {
         get { defaults.object(forKey: Key.codexEnabled) as? Bool ?? true }

@@ -6,6 +6,7 @@ final class UsageStore: ObservableObject {
     @Published private(set) var claudeSnapshot = ClaudeUsageSnapshot()
     @Published private(set) var geminiSnapshot = GeminiUsageSnapshot()
     @Published var codexHome: String
+    @Published var codexDataSource: CodexDataSource
     @Published var claudeOrganizationID: String
     @Published var claudeSessionKey: String
     @Published var claudeCfClearance: String
@@ -30,6 +31,8 @@ final class UsageStore: ObservableObject {
 
     private let settings = SettingsStore.shared
     private let reader = UsageReader()
+    private let codexLiveUsageClient = CodexLiveUsageClient()
+    private let codexAppServerClient = CodexAppServerClient()
     private let claudeClient = ClaudeUsageClient()
     private let geminiClient = GeminiUsageClient()
     private var timer: Timer?
@@ -39,6 +42,7 @@ final class UsageStore: ObservableObject {
 
     init() {
         codexHome = settings.codexHome
+        codexDataSource = settings.codexDataSource
         claudeOrganizationID = settings.claudeOrganizationID
         claudeSessionKey = ""
         claudeCfClearance = ""
@@ -114,30 +118,69 @@ final class UsageStore: ObservableObject {
     }
 
     private func refreshCodexAsync() {
-        guard !isRefreshingCodex else { return }
+        guard !isRefreshingCodex else {
+            AppLog.codex.info("Codex refresh skipped because one is already running")
+            return
+        }
+        AppLog.codex.info("Codex refresh queued")
         isRefreshingCodex = true
         let codexHome = codexHome
+        let codexDataSource = codexDataSource
         let reader = reader
+        let codexLiveUsageClient = codexLiveUsageClient
 
         Task.detached(priority: .utility) {
-            let balanceSnapshot = reader.loadBalanceSnapshot(codexHome: codexHome)
-            await MainActor.run {
-                self.snapshot = balanceSnapshot
-                self.notifyIfNeeded(balanceSnapshot)
-            }
+            let result = Result {
+                AppLog.codex.info("Codex refresh source selected: \(codexDataSource.title, privacy: .public)")
 
-            let result = Result { try reader.loadSnapshot(codexHome: codexHome) }
+                switch codexDataSource {
+                case .liveOAuth:
+                    var liveSnapshot = UsageSnapshot(updatedAt: Date())
+                    do {
+                        let liveRateLimits = try codexLiveUsageClient.loadRateLimits(codexHome: codexHome)
+                        liveSnapshot.rateLimits = liveRateLimits
+                        liveSnapshot.updatedAt = Date()
+                        liveSnapshot.errorMessage = nil
+                        AppLog.codex.info("Codex refresh using live OAuth source")
+                        return liveSnapshot
+                    } catch {
+                        AppLog.codex.error("Codex live OAuth refresh failed: \(error.localizedDescription, privacy: .public)")
+                        liveSnapshot.rateLimits = nil
+                        liveSnapshot.updatedAt = Date()
+                        liveSnapshot.errorMessage = "Live Codex refresh failed. Switch Codex data source to Local Codex files to use the fallback route. Check Xcode logs for ModelMeter/Codex."
+                        return liveSnapshot
+                    }
+
+                case .localFiles:
+                    AppLog.codex.info("Codex local file refresh starting")
+                    var fullSnapshot = (try? reader.loadSnapshot(codexHome: codexHome)) ?? UsageSnapshot(updatedAt: Date())
+                    let localSource = fullSnapshot.rateLimits?.sourceLabel ?? "none"
+                    AppLog.codex.info("Codex local files loaded; source=\(localSource, privacy: .public); hasRateLimits=\((fullSnapshot.rateLimits != nil), privacy: .public)")
+                    fullSnapshot.updatedAt = fullSnapshot.rateLimits?.capturedAt ?? fullSnapshot.updatedAt ?? Date()
+                    if let local = fullSnapshot.rateLimits, local.isLikelyPlaceholder {
+                        fullSnapshot.rateLimits = nil
+                        fullSnapshot.errorMessage = "Local Codex files contain only placeholder balance data. Switch Codex data source to Live ChatGPT for current balances."
+                    } else if fullSnapshot.rateLimits == nil {
+                        fullSnapshot.errorMessage = "No Codex rate-limit balances found in local files."
+                    } else {
+                        fullSnapshot.errorMessage = nil
+                    }
+                    return fullSnapshot
+                }
+            }
             await MainActor.run {
                 self.isRefreshingCodex = false
                 switch result {
                 case .success(let fullSnapshot):
                     self.snapshot = fullSnapshot
                     self.notifyIfNeeded(fullSnapshot)
+                    AppLog.codex.info("Codex refresh finished; source=\(fullSnapshot.rateLimits?.sourceLabel ?? "none", privacy: .public); error=\(fullSnapshot.errorMessage ?? "none", privacy: .public)")
                 case .failure(let error):
                     var current = self.snapshot
                     current.errorMessage = error.localizedDescription
                     current.updatedAt = Date()
                     self.snapshot = current
+                    AppLog.codex.error("Codex refresh crashed: \(error.localizedDescription, privacy: .public)")
                 }
             }
         }
@@ -167,6 +210,7 @@ final class UsageStore: ObservableObject {
 
     private func persistSettings() {
         settings.codexHome = codexHome
+        settings.codexDataSource = codexDataSource
         settings.claudeOrganizationID = claudeOrganizationID
         if !claudeSessionKey.isEmpty || !claudeCfClearance.isEmpty {
             let credentialsStatus = KeychainStore.writeClaudeCredentials(
