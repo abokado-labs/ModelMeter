@@ -25,7 +25,8 @@ struct DashboardView: View {
                                     metaLeftValue: store.snapshot.rateLimits?.displayPlan ?? "Unknown",
                                     metaRightTitle: "Updated",
                                     metaRightValue: codexUpdatedText,
-                                    message: codexMessage
+                                    message: codexMessage,
+                                    operationalStatus: store.providerStatuses.codex
                                 )
                             }
 
@@ -44,7 +45,8 @@ struct DashboardView: View {
                                     metaLeftValue: claudeAccountText,
                                     metaRightTitle: "Updated",
                                     metaRightValue: claudeUpdatedText,
-                                    message: claudeMessage
+                                    message: claudeMessage,
+                                    operationalStatus: store.providerStatuses.claude
                                 )
                             }
 
@@ -286,6 +288,7 @@ private struct ProviderZone: View {
     let metaRightTitle: String
     let metaRightValue: String
     let message: String?
+    let operationalStatus: ProviderOperationalStatus
 
     private var providerHealth: ProviderHealth {
         if enabled == false { return .disabled }
@@ -318,6 +321,8 @@ private struct ProviderZone: View {
                 MetaTile(title: metaLeftTitle, value: metaLeftValue)
                 MetaTile(title: metaRightTitle, value: metaRightValue)
             }
+
+            OperationalStatusLine(status: operationalStatus)
 
             if let message, !message.isEmpty {
                 Text(message)
@@ -377,6 +382,39 @@ private enum ProviderHealth {
         case .disabled:
             return "Disabled"
         }
+    }
+}
+
+private struct OperationalStatusLine: View {
+    let status: ProviderOperationalStatus
+
+    var body: some View {
+        HStack(spacing: 5) {
+            Image(systemName: status.severity.symbolName)
+                .font(.caption2)
+                .foregroundStyle(status.severity.color)
+            Text(text)
+                .font(.caption2)
+                .foregroundStyle(status.hasIssue ? .orange : .secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .help(helpText)
+    }
+
+    private var text: String {
+        if status.hasIssue {
+            return "Provider status: \(status.displayMessage)"
+        }
+        if status.severity == .unknown {
+            return "Provider status: Not available"
+        }
+        return "Provider status: \(status.severity.title)"
+    }
+
+    private var helpText: String {
+        guard let checkedAt = status.checkedAt else { return text }
+        return text + " • Checked " + checkedAt.formatted(date: .omitted, time: .shortened)
     }
 }
 

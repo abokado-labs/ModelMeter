@@ -8,12 +8,23 @@ enum MenuBarImageRenderer {
         fontSize: MenuBarFontSize,
         labelStyle: MenuBarLabelStyle,
         codexWarning: Bool,
-        claudeWarning: Bool
+        claudeWarning: Bool,
+        geminiWarning: Bool
     ) -> NSImage {
         let font = NSFont.monospacedDigitSystemFont(ofSize: fontSize.pointSize, weight: .medium)
         let textAttributes = attributes(font: font, color: .labelColor)
         let warningAttributes = attributes(font: font, color: .systemRed)
-        let parts = parse(title: title)
+        let parts = parse(title: title).map { part in
+            guard let provider = part.provider else { return part }
+            switch provider {
+            case .codex:
+                return MenuBarPart(provider: part.provider, label: part.label, value: part.value, warning: part.warning || codexWarning)
+            case .claude:
+                return MenuBarPart(provider: part.provider, label: part.label, value: part.value, warning: part.warning || claudeWarning)
+            case .gemini:
+                return MenuBarPart(provider: part.provider, label: part.label, value: part.value, warning: part.warning || geminiWarning)
+            }
+        }
         let statusIconWidth = iconMode == .statusIcon ? fontSize.pointSize + 5 : 0
         let providerIconSize = fontSize.pointSize + 2
         let partGap: CGFloat = parts.count > 1 ? 10 : 0

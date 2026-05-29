@@ -26,6 +26,7 @@ final class SettingsStore: @unchecked Sendable {
         static let showClaudeInMenuBar = "showClaudeInMenuBar"
         static let showGeminiInMenuBar = "showGeminiInMenuBar"
         static let paceWarningsEnabled = "paceWarningsEnabled"
+        static let providerStatusWarningsEnabled = "providerStatusWarningsEnabled"
     }
 
     var codexHome: String {
@@ -82,6 +83,11 @@ final class SettingsStore: @unchecked Sendable {
     var paceWarningsEnabled: Bool {
         get { defaults.object(forKey: Key.paceWarningsEnabled) as? Bool ?? false }
         set { defaults.set(newValue, forKey: Key.paceWarningsEnabled) }
+    }
+
+    var providerStatusWarningsEnabled: Bool {
+        get { defaults.object(forKey: Key.providerStatusWarningsEnabled) as? Bool ?? true }
+        set { defaults.set(newValue, forKey: Key.providerStatusWarningsEnabled) }
     }
 
     var sessionLimit: Int {

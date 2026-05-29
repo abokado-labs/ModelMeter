@@ -105,14 +105,14 @@ final class UsageReaderTests: XCTestCase {
         XCTAssertEqual(items[0].id, "current-usage")
         XCTAssertEqual(items[0].usedPercent, 0)
         XCTAssertEqual(items[0].remainingPercent, 100)
-        XCTAssertNil(items[0].detail)
+        XCTAssertEqual(items[0].detail, "Resets at 3:28 AM")
         XCTAssertEqual(items[1].id, "weekly-limit")
         XCTAssertEqual(items[1].usedPercent, 0)
         XCTAssertEqual(items[1].remainingPercent, 100)
-        XCTAssertNil(items[1].detail)
+        XCTAssertEqual(items[1].detail, "Resets May 26 at 10:28 PM")
     }
 
-    func testGeminiParserKeepsRenderedResetTimesWhenPageReportsPriorUpdate() throws {
+    func testGeminiParserKeepsRenderedResetTimesWhenUsageIsZero() throws {
         let renderedText = """
         BODY INNER TEXT
         Gemini Usage limits PRO Updated 1 hr ago Current usage 0% used Resets at 2:28 AM Weekly limit Resets May 26 at 9:28 PM 0% used Get 20x more usage than AI Pro

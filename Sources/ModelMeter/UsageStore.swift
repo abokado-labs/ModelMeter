@@ -5,6 +5,7 @@ final class UsageStore: ObservableObject {
     @Published private(set) var snapshot = UsageSnapshot()
     @Published private(set) var claudeSnapshot = ClaudeUsageSnapshot()
     @Published private(set) var geminiSnapshot = GeminiUsageSnapshot()
+    @Published private(set) var providerStatuses = ProviderStatusSnapshot()
     @Published var codexHome: String
     @Published var codexDataSource: CodexDataSource
     @Published var claudeOrganizationID: String
@@ -28,6 +29,7 @@ final class UsageStore: ObservableObject {
     @Published var showClaudeInMenuBar: Bool
     @Published var showGeminiInMenuBar: Bool
     @Published var paceWarningsEnabled: Bool
+    @Published var providerStatusWarningsEnabled: Bool
 
     private let settings = SettingsStore.shared
     private let reader = UsageReader()
@@ -35,10 +37,13 @@ final class UsageStore: ObservableObject {
     private let codexAppServerClient = CodexAppServerClient()
     private let claudeClient = ClaudeUsageClient()
     private let geminiClient = GeminiUsageClient()
+    private let providerStatusClient = ProviderStatusClient()
     private var timer: Timer?
+    private var providerStatusTimer: Timer?
     private var lastNotificationStatus: UsageStatus = .unknown
     private var hasStarted = false
     private var isRefreshingCodex = false
+    private var isRefreshingProviderStatuses = false
 
     init() {
         codexHome = settings.codexHome
@@ -64,6 +69,7 @@ final class UsageStore: ObservableObject {
         showClaudeInMenuBar = settings.showClaudeInMenuBar
         showGeminiInMenuBar = settings.showGeminiInMenuBar
         paceWarningsEnabled = settings.paceWarningsEnabled
+        providerStatusWarningsEnabled = settings.providerStatusWarningsEnabled
     }
 
     var menuTitle: String {
@@ -85,18 +91,32 @@ final class UsageStore: ObservableObject {
         return window.isAheadOfPace
     }
 
+    var codexMenuStatusWarning: Bool {
+        providerStatusWarningsEnabled && providerStatuses.codex.hasIssue
+    }
+
     var claudeMenuMetricAheadOfPace: Bool {
         guard paceWarningsEnabled, let window = menuBarMetric.claudeWindow(from: claudeSnapshot) else { return false }
         return window.isAheadOfPace
     }
 
+    var claudeMenuStatusWarning: Bool {
+        providerStatusWarningsEnabled && providerStatuses.claude.hasIssue
+    }
+
     var geminiMenuMetricAheadOfPace: Bool { false }
+
+    var geminiMenuStatusWarning: Bool {
+        providerStatusWarningsEnabled && providerStatuses.gemini.hasIssue
+    }
 
     func start() {
         guard !hasStarted else { return }
         hasStarted = true
         scheduleTimer()
+        scheduleProviderStatusTimer()
         refresh()
+        refreshProviderStatuses()
     }
 
     func refresh() {
@@ -240,6 +260,7 @@ final class UsageStore: ObservableObject {
         settings.showClaudeInMenuBar = showClaudeInMenuBar
         settings.showGeminiInMenuBar = showGeminiInMenuBar
         settings.paceWarningsEnabled = paceWarningsEnabled
+        settings.providerStatusWarningsEnabled = providerStatusWarningsEnabled
     }
 
     private func scheduleTimer() {
@@ -248,6 +269,32 @@ final class UsageStore: ObservableObject {
             Task { @MainActor in
                 self?.refresh()
             }
+        }
+    }
+
+    private func scheduleProviderStatusTimer() {
+        providerStatusTimer?.invalidate()
+        providerStatusTimer = Timer.scheduledTimer(withTimeInterval: 300, repeats: true) { [weak self] _ in
+            Task { @MainActor in
+                self?.refreshProviderStatuses()
+            }
+        }
+    }
+
+    func refreshProviderStatuses() {
+        guard providerStatusWarningsEnabled else { return }
+        guard !isRefreshingProviderStatuses else {
+            AppLog.status.info("Provider status refresh skipped because one is already running")
+            return
+        }
+        isRefreshingProviderStatuses = true
+        AppLog.status.info("Provider status refresh queued")
+        Task {
+            let snapshot = await providerStatusClient.fetchAll()
+            providerStatuses = snapshot
+            isRefreshingProviderStatuses = false
+            let issue = snapshot.mostSevereIssue.map { "\($0.provider.rawValue): \($0.severity.title)" } ?? "none"
+            AppLog.status.info("Provider status refresh finished; issue=\(issue, privacy: .public)")
         }
     }
 
@@ -268,8 +315,10 @@ final class UsageStore: ObservableObject {
 
 
     private func refreshGemini() async {
+        AppLog.gemini.info("Gemini refresh queued")
         do {
             geminiSnapshot = try await geminiClient.fetch()
+            AppLog.gemini.info("Gemini refresh finished; error=none")
         } catch {
             if !geminiSnapshot.items.isEmpty {
                 geminiSnapshot = GeminiUsageSnapshot(
@@ -277,11 +326,13 @@ final class UsageStore: ObservableObject {
                     updatedAt: geminiSnapshot.updatedAt,
                     errorMessage: error.localizedDescription
                 )
+                AppLog.gemini.error("Gemini refresh failed; preserving current snapshot; error=\(error.localizedDescription, privacy: .public)")
             } else {
                 geminiSnapshot = GeminiUsageSnapshot(
                     updatedAt: Date(),
                     errorMessage: error.localizedDescription
                 )
+                AppLog.gemini.error("Gemini refresh failed with no usable snapshot; error=\(error.localizedDescription, privacy: .public)")
             }
         }
     }
@@ -299,9 +350,11 @@ final class UsageStore: ObservableObject {
     }
 
     private func refreshClaude() async {
+        AppLog.claude.info("Claude refresh queued; configuredOrganization=\((!self.claudeOrganizationID.isEmpty), privacy: .public)")
         let credentials = loadedClaudeCredentials()
         guard !credentials.sessionKey.isEmpty else {
             claudeSnapshot = ClaudeUsageSnapshot(updatedAt: Date(), errorMessage: "Claude credentials are not available. Sign in again from settings.")
+            AppLog.claude.error("Claude refresh failed; no session key available")
             return
         }
 
@@ -312,8 +365,10 @@ final class UsageStore: ObservableObject {
                 cfClearance: credentials.cfClearance
             )
             claudeSnapshot = result
+            AppLog.claude.info("Claude refresh finished; error=none")
         } catch {
             claudeSnapshot = ClaudeUsageSnapshot(updatedAt: Date(), errorMessage: error.localizedDescription)
+            AppLog.claude.error("Claude refresh failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

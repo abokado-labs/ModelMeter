@@ -128,7 +128,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         let item = NSStatusBar.system.statusItem(withLength: 64)
         if let button = item.button {
             button.title = "MM"
-            button.toolTip = "Model Meter"
+            button.toolTip = menuBarToolTip()
             button.target = self
             button.action = #selector(togglePopover(_:))
             button.sendAction(on: [.leftMouseUp, .rightMouseUp])
@@ -159,27 +159,28 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             iconMode: store.menuBarIconMode,
             fontSize: store.menuBarFontSize,
             labelStyle: store.menuBarLabelStyle,
-            codexWarning: store.codexMenuMetricAheadOfPace,
-            claudeWarning: store.claudeMenuMetricAheadOfPace
+            codexWarning: store.codexMenuMetricAheadOfPace || store.codexMenuStatusWarning,
+            claudeWarning: store.claudeMenuMetricAheadOfPace || store.claudeMenuStatusWarning,
+            geminiWarning: false
         )
         button.title = ""
         button.attributedTitle = NSAttributedString()
         button.image = image
         button.imagePosition = .imageOnly
         statusItem?.length = max(36, min(image.size.width + 12, 190))
-        button.toolTip = "Model Meter"
+        button.toolTip = menuBarToolTip()
     }
 
     private func menuBarPlainTitle() -> String {
         var parts: [String] = []
         if store.codexEnabled && store.showCodexInMenuBar {
-            let label = store.codexMenuMetricAheadOfPace ? "C!" : "C"
+            let label = (store.codexMenuMetricAheadOfPace || store.codexMenuStatusWarning) ? "C!" : "C"
             let value = store.menuBarMetric.value(from: store.snapshot).map { UsageMath.wholePercent($0) } ?? "--"
             parts.append("\(label) \(value)")
         }
 
         if store.claudeEnabled && store.showClaudeInMenuBar {
-            let label = store.claudeMenuMetricAheadOfPace ? "Cl!" : "Cl"
+            let label = (store.claudeMenuMetricAheadOfPace || store.claudeMenuStatusWarning) ? "Cl!" : "Cl"
             let value = store.menuBarMetric.value(from: store.claudeSnapshot).map { UsageMath.wholePercent($0) } ?? "--"
             parts.append("\(label) \(value)")
         }
@@ -190,6 +191,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         }
 
         return parts.isEmpty ? "MM" : parts.joined(separator: "  ")
+    }
+
+    private func menuBarToolTip() -> String {
+        var lines = ["Model Meter"]
+        for status in [store.providerStatuses.codex, store.providerStatuses.claude, store.providerStatuses.gemini] where status.hasIssue {
+            lines.append("\(status.provider.rawValue): \(status.severity.title) - \(status.displayMessage)")
+        }
+        return lines.joined(separator: "\n")
     }
 
     @objc private func togglePopover(_ sender: NSStatusBarButton) {

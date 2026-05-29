@@ -80,6 +80,151 @@ struct GeminiUsageItem: Identifiable, Hashable {
     var remainingPercent: Double { max(100 - usedPercent, 0) }
 }
 
+enum ProviderKind: String, CaseIterable, Identifiable {
+    case codex = "Codex"
+    case claude = "Claude"
+    case gemini = "Gemini"
+
+    var id: Self { self }
+}
+
+enum ProviderStatusSeverity: String, Comparable {
+    case unknown
+    case operational
+    case degraded
+    case partialOutage
+    case majorOutage
+    case maintenance
+
+    init(statusPageIndicator: String) {
+        switch statusPageIndicator.lowercased() {
+        case "none":
+            self = .operational
+        case "minor":
+            self = .degraded
+        case "major":
+            self = .partialOutage
+        case "critical":
+            self = .majorOutage
+        default:
+            self = .unknown
+        }
+    }
+
+    init(statusPageStatus: String) {
+        switch statusPageStatus.lowercased() {
+        case "operational":
+            self = .operational
+        case "degraded_performance":
+            self = .degraded
+        case "partial_outage":
+            self = .partialOutage
+        case "major_outage":
+            self = .majorOutage
+        case "under_maintenance":
+            self = .maintenance
+        default:
+            self = .unknown
+        }
+    }
+
+    static func < (lhs: ProviderStatusSeverity, rhs: ProviderStatusSeverity) -> Bool {
+        lhs.rank < rhs.rank
+    }
+
+    var isIssue: Bool {
+        switch self {
+        case .degraded, .partialOutage, .majorOutage, .maintenance:
+            return true
+        case .unknown, .operational:
+            return false
+        }
+    }
+
+    var rank: Int {
+        switch self {
+        case .unknown: return 0
+        case .operational: return 1
+        case .maintenance: return 2
+        case .degraded: return 3
+        case .partialOutage: return 4
+        case .majorOutage: return 5
+        }
+    }
+
+    var title: String {
+        switch self {
+        case .unknown: return "Status unknown"
+        case .operational: return "Operational"
+        case .degraded: return "Degraded"
+        case .partialOutage: return "Partial outage"
+        case .majorOutage: return "Major outage"
+        case .maintenance: return "Maintenance"
+        }
+    }
+
+    var symbolName: String {
+        switch self {
+        case .operational: return "checkmark.circle.fill"
+        case .unknown: return "questionmark.circle.fill"
+        case .degraded, .partialOutage, .majorOutage, .maintenance:
+            return "exclamationmark.triangle.fill"
+        }
+    }
+
+    var color: Color {
+        switch self {
+        case .operational: return .green
+        case .unknown: return .secondary
+        case .maintenance: return .blue
+        case .degraded: return .yellow
+        case .partialOutage, .majorOutage: return .orange
+        }
+    }
+}
+
+struct ProviderOperationalStatus: Equatable {
+    let provider: ProviderKind
+    let severity: ProviderStatusSeverity
+    let message: String?
+    let source: String
+    let checkedAt: Date?
+
+    static func unknown(provider: ProviderKind, source: String = "") -> ProviderOperationalStatus {
+        ProviderOperationalStatus(
+            provider: provider,
+            severity: .unknown,
+            message: nil,
+            source: source,
+            checkedAt: nil
+        )
+    }
+
+    var hasIssue: Bool { severity.isIssue }
+    var displayMessage: String { message ?? severity.title }
+}
+
+struct ProviderStatusSnapshot: Equatable {
+    var codex: ProviderOperationalStatus = .unknown(provider: .codex)
+    var claude: ProviderOperationalStatus = .unknown(provider: .claude)
+    var gemini: ProviderOperationalStatus = .unknown(provider: .gemini)
+    var updatedAt: Date?
+
+    func status(for provider: ProviderKind) -> ProviderOperationalStatus {
+        switch provider {
+        case .codex: return codex
+        case .claude: return claude
+        case .gemini: return gemini
+        }
+    }
+
+    var mostSevereIssue: ProviderOperationalStatus? {
+        [codex, claude, gemini]
+            .filter(\.hasIssue)
+            .max { $0.severity < $1.severity }
+    }
+}
+
 struct ThreadUsage: Identifiable, Decodable {
     let id: String
     let title: String

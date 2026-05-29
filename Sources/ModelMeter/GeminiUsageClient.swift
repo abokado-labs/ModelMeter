@@ -7,10 +7,14 @@ final class GeminiUsageClient {
 
     func fetch() async throws -> GeminiUsageSnapshot {
         do {
-            return try await GeminiWebSession.shared.refresh()
+            let snapshot = try await GeminiWebSession.shared.refresh()
+            AppLog.gemini.info("Gemini refresh succeeded; items=\(snapshot.items.count, privacy: .public); primary=\(snapshot.primaryItem?.usedPercent ?? -1, privacy: .public); weekly=\(snapshot.weeklyItem?.usedPercent ?? -1, privacy: .public)")
+            return snapshot
         } catch {
+            AppLog.gemini.error("Gemini refresh failed: \(error.localizedDescription, privacy: .public)")
             if var stored = GeminiWebSession.loadStoredSnapshot(maxAge: nil) {
                 stored.errorMessage = error.localizedDescription
+                AppLog.gemini.info("Gemini refresh preserving stored snapshot; items=\(stored.items.count, privacy: .public); primary=\(stored.primaryItem?.usedPercent ?? -1, privacy: .public); weekly=\(stored.weeklyItem?.usedPercent ?? -1, privacy: .public)")
                 return stored
             }
             throw error
@@ -210,15 +214,13 @@ enum GeminiUsageParser {
               compact.localizedCaseInsensitiveContains("Weekly limit")
         else { return nil }
 
-        let suppressSyntheticReset = sourceUpdatedText(in: compact)?.localizedCaseInsensitiveContains("just now") == true
         var items: [GeminiUsageItem] = []
         if let current = parseCompactSection(
             id: "current-usage",
             title: "Current usage",
             startLabel: "Current usage",
             endLabels: ["Weekly limit", "gxu-weekly"],
-            compact: compact,
-            suppressSyntheticReset: suppressSyntheticReset
+            compact: compact
         ) {
             items.append(current)
         }
@@ -227,8 +229,7 @@ enum GeminiUsageParser {
             title: "Weekly limit",
             startLabel: "Weekly limit",
             endLabels: ["Get 20x", "Upgrade", "DOM AND SHADOW TEXT", "SCRIPT CANDIDATES", "RESOURCE CANDIDATES"],
-            compact: compact,
-            suppressSyntheticReset: suppressSyntheticReset
+            compact: compact
         ) {
             items.append(weekly)
         }
@@ -254,8 +255,7 @@ enum GeminiUsageParser {
         title: String,
         startLabel: String,
         endLabels: [String],
-        compact: String,
-        suppressSyntheticReset: Bool = false
+        compact: String
     ) -> GeminiUsageItem? {
         guard let startRange = compact.range(of: startLabel, options: [.caseInsensitive]) else { return nil }
         let afterStart = compact[startRange.upperBound...]
@@ -268,17 +268,8 @@ enum GeminiUsageParser {
             id: id,
             title: title,
             usedPercent: usedPercent,
-            detail: suppressSyntheticReset && usedPercent == 0 ? nil : resetDetail(in: section)
+            detail: resetDetail(in: section)
         )
-    }
-
-    private static func sourceUpdatedText(in compact: String) -> String? {
-        guard let regex = try? NSRegularExpression(pattern: #"Updated\s+(.+?)(?=\s+Current usage|\s+gxu-currently|$)"#, options: [.caseInsensitive]) else { return nil }
-        let range = NSRange(compact.startIndex..., in: compact)
-        guard let match = regex.firstMatch(in: compact, range: range),
-              let valueRange = Range(match.range(at: 1), in: compact)
-        else { return nil }
-        return collapseWhitespace(String(compact[valueRange]))
     }
 
     private static func usedPercent(in section: String) -> Double? {

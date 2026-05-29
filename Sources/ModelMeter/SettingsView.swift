@@ -191,9 +191,17 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
             }
 
-            SettingsSection("Pace Warning") {
+            SettingsSection("Warnings") {
                 Toggle("Warn when usage is ahead of pace", isOn: $store.paceWarningsEnabled)
                 helperText("Turns a menu bar value red when usage is ahead of the time elapsed in its reset window. The time marker remains visible on each bar.")
+
+                Toggle("Warn when a provider reports an outage", isOn: $store.providerStatusWarningsEnabled)
+                helperText("Checks official provider status sources about every 5 minutes. Status pages can lag real incidents, so this is a known-issue warning rather than a full health guarantee.")
+
+                settingsButton("Refresh Provider Status", systemImage: "waveform.path.ecg") {
+                    store.refreshProviderStatuses()
+                }
+                .disabled(!store.providerStatusWarningsEnabled)
             }
 
             SettingsSection("Preview") {
@@ -211,9 +219,22 @@ struct SettingsView: View {
                 }
             }
 
+            SettingsSection("Support") {
+                HStack(spacing: 8) {
+                    settingsButton("Send Feedback", systemImage: "envelope") {
+                        openFeedbackEmail(subject: "Model Meter feedback")
+                    }
+                    settingsButton("Request Feature", systemImage: "lightbulb") {
+                        openFeedbackEmail(subject: "Model Meter feature request")
+                    }
+                }
+                helperText("This opens your email app. Model Meter does not send feedback automatically.")
+            }
+
             SettingsSection("Privacy") {
                 helperText("Model Meter is a local-first usage tracker from Abokado Labs. It is not affiliated with OpenAI, Anthropic, Google, Gemini, Claude, ChatGPT, Codex, or Apple.")
                 helperText("Codex can be refreshed either from Codex's existing ChatGPT OAuth session or from local Codex files, depending on the selected Codex data source. Claude credentials are stored in macOS Keychain. Gemini web usage is refreshed through an embedded WebKit session. Only parsed usage percentages and reset times are stored locally.")
+                helperText("Provider status warnings are checked from official public status sources. Model Meter stores only the latest normalized status, source URL, and checked time.")
             }
 
             SettingsSection("Links") {
@@ -313,6 +334,35 @@ struct SettingsView: View {
         }
     }
 
+    private func openFeedbackEmail(subject: String) {
+        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unknown"
+        let build = Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unknown"
+        let osVersion = ProcessInfo.processInfo.operatingSystemVersionString
+        let body = """
+        App version: Model Meter \(version) (\(build))
+        macOS version: \(osVersion)
+
+        What happened / What would you like?
+
+
+        Steps or context:
+
+
+        Expected result:
+
+
+        """
+        var components = URLComponents()
+        components.scheme = "mailto"
+        components.path = "hello@abokadolabs.com"
+        components.queryItems = [
+            URLQueryItem(name: "subject", value: subject),
+            URLQueryItem(name: "body", value: body)
+        ]
+        guard let url = components.url else { return }
+        NSWorkspace.shared.open(url)
+    }
+
     private func openURL(_ string: String) {
         guard let url = URL(string: string) else { return }
         NSWorkspace.shared.open(url)
@@ -330,7 +380,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         switch self {
         case .providers: return "Providers"
         case .menuBar: return "Menu Bar"
-        case .updatesPrivacy: return "Updates & Privacy"
+        case .updatesPrivacy: return "Updates & Support"
         }
     }
 
@@ -338,7 +388,7 @@ private enum SettingsTab: CaseIterable, Identifiable {
         switch self {
         case .providers: return "server.rack"
         case .menuBar: return "menubar.rectangle"
-        case .updatesPrivacy: return "lock.shield"
+        case .updatesPrivacy: return "questionmark.circle"
         }
     }
 }

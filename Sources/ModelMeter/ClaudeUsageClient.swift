@@ -29,6 +29,7 @@ final class ClaudeUsageClient: Sendable {
     }
 
     func fetch(organizationID: String, sessionKey: String, cfClearance: String) async throws -> ClaudeUsageSnapshot {
+        AppLog.claude.info("Claude usage refresh starting; organizationID=\(organizationID, privacy: .public); hasSessionKey=\((!sessionKey.isEmpty), privacy: .public); hasCfClearance=\((!cfClearance.isEmpty), privacy: .public)")
         guard !organizationID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw ClaudeUsageError.missingOrganization
         }
@@ -48,7 +49,9 @@ final class ClaudeUsageClient: Sendable {
             referer: "https://claude.ai/settings/usage",
             label: "usage"
         )
-        return try parseUsageSnapshot(data)
+        let snapshot = try parseUsageSnapshot(data)
+        AppLog.claude.info("Claude usage refresh succeeded; fiveHour=\(snapshot.rateLimits?.session.usedPercent ?? -1, privacy: .public); weekly=\(snapshot.rateLimits?.weekly.usedPercent ?? -1, privacy: .public)")
+        return snapshot
     }
 
     func discoverOrganizationID(sessionKey: String, cfClearance: String) async throws -> String {
@@ -92,8 +95,10 @@ final class ClaudeUsageClient: Sendable {
             throw ClaudeUsageError.invalidResponse("No HTTP response for \(label)")
         }
         guard (200..<300).contains(http.statusCode) else {
+            AppLog.claude.error("Claude \(label, privacy: .public) request failed; status=\(http.statusCode, privacy: .public); preview=\(self.preview(data), privacy: .public)")
             throw ClaudeUsageError.httpStatus(http.statusCode, label, preview(data))
         }
+        AppLog.claude.info("Claude \(label, privacy: .public) request returned HTTP \(http.statusCode, privacy: .public)")
         return data
     }
 
@@ -106,6 +111,7 @@ final class ClaudeUsageClient: Sendable {
               let weekly = makeWindow(json["seven_day"] as? [String: Any], defaultMinutes: 10_080)
         else {
             let keys = json.keys.sorted().joined(separator: ", ")
+            AppLog.claude.error("Claude usage response missing usable windows; keys=\(keys, privacy: .public); preview=\(self.preview(data), privacy: .public)")
             throw ClaudeUsageError.invalidResponse("Claude usage response did not include readable five_hour and seven_day windows. Keys: \(keys)")
         }
 
@@ -129,10 +135,13 @@ final class ClaudeUsageClient: Sendable {
         guard let used = parsePercent(window["utilization"] ?? window["utilization_pct"]) else {
             return nil
         }
+        guard let resetsAt = parseDate(window["resets_at"] as? String ?? window["reset_at"] as? String) else {
+            return nil
+        }
         return RateLimitWindow(
             usedPercent: used,
             windowMinutes: defaultMinutes,
-            resetsAt: parseDate(window["resets_at"] as? String ?? window["reset_at"] as? String) ?? Date()
+            resetsAt: resetsAt
         )
     }
 

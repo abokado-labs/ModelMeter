@@ -18,6 +18,7 @@ final class GeminiWebSession {
     private init() {}
 
     func refresh() async throws -> GeminiUsageSnapshot {
+        AppLog.gemini.info("Gemini Web Session refresh starting")
         let configuration = WKWebViewConfiguration()
         configuration.websiteDataStore = dataStore
         configuration.preferences.javaScriptCanOpenWindowsAutomatically = true
@@ -33,6 +34,7 @@ final class GeminiWebSession {
         }
 
         let text = try await loader.renderedText(from: Self.usageURL)
+        AppLog.gemini.info("Gemini Web Session rendered text captured; length=\(text.count, privacy: .public); preview=\(Self.diagnosticPreview(text), privacy: .public)")
         return try captureSnapshot(fromRenderedText: text, currentURL: webView.url)
     }
 
@@ -68,15 +70,20 @@ final class GeminiWebSession {
         if let maxAge, Date().timeIntervalSince(payload.updatedAt) > maxAge {
             return nil
         }
+        let items = payload.items.map { item in
+            GeminiUsageItem(
+                id: item.id,
+                title: item.title,
+                usedPercent: min(max(item.usedPercent, 0), 100),
+                detail: item.detail
+            )
+        }
+        guard hasUsableUsageMetadata(items) else {
+            AppLog.gemini.error("Gemini stored snapshot ignored because it has no usable usage metadata")
+            return nil
+        }
         return GeminiUsageSnapshot(
-            items: payload.items.map { item in
-                GeminiUsageItem(
-                    id: item.id,
-                    title: item.title,
-                    usedPercent: min(max(item.usedPercent, 0), 100),
-                    detail: item.detail
-                )
-            },
+            items: items,
             updatedAt: payload.updatedAt,
             errorMessage: nil,
             accountEmail: nil,
@@ -92,8 +99,15 @@ final class GeminiWebSession {
         let items = GeminiUsageParser.parse(text)
         guard !items.isEmpty else {
             if isSignInState(renderedText: text, currentURL: currentURL) {
+                AppLog.gemini.error("Gemini capture detected sign-in state; url=\(currentURL?.absoluteString ?? "unknown", privacy: .public); preview=\(Self.diagnosticPreview(text), privacy: .public)")
                 throw GeminiUsageError.notLoggedIn
             }
+            AppLog.gemini.error("Gemini capture found no usage items; url=\(currentURL?.absoluteString ?? "unknown", privacy: .public); preview=\(Self.diagnosticPreview(text), privacy: .public)")
+            throw GeminiUsageError.noUsageFound
+        }
+
+        guard Self.hasUsableUsageMetadata(items) else {
+            AppLog.gemini.error("Gemini capture rejected ambiguous zero snapshot; url=\(currentURL?.absoluteString ?? "unknown", privacy: .public); preview=\(Self.diagnosticPreview(text), privacy: .public)")
             throw GeminiUsageError.noUsageFound
         }
 
@@ -128,6 +142,23 @@ final class GeminiWebSession {
         if let data = try? JSONEncoder().encode(payload) {
             UserDefaults.standard.set(data, forKey: snapshotKey)
         }
+    }
+
+    private static func hasUsableUsageMetadata(_ items: [GeminiUsageItem]) -> Bool {
+        guard !items.isEmpty else { return false }
+        if items.contains(where: { $0.usedPercent > 0 }) { return true }
+        return items.contains { item in
+            guard let detail = item.detail?.trimmingCharacters(in: .whitespacesAndNewlines), !detail.isEmpty else {
+                return false
+            }
+            return detail.localizedCaseInsensitiveContains("reset")
+                || detail.localizedCaseInsensitiveContains("renew")
+                || detail.localizedCaseInsensitiveContains("refresh")
+        }
+    }
+
+    private static func diagnosticPreview(_ text: String) -> String {
+        GeminiUsageParser.diagnosticPreview(text)
     }
 
     private func evaluateStringJavaScript(_ script: String, in webView: WKWebView) async throws -> String {
