@@ -236,10 +236,10 @@ final class UsageStore: ObservableObject {
                             UsageHistoryEntry(
                                 provider: .codex,
                                 capturedAt: rateLimits.capturedAt,
-                                primaryUsedPercent: rateLimits.primary.usedPercent,
-                                primaryRemainingPercent: rateLimits.primary.remainingPercent,
-                                secondaryUsedPercent: rateLimits.secondary.usedPercent,
-                                secondaryRemainingPercent: rateLimits.secondary.remainingPercent,
+                                primaryUsedPercent: rateLimits.primary?.usedPercent,
+                                primaryRemainingPercent: rateLimits.primary?.remainingPercent,
+                                secondaryUsedPercent: rateLimits.secondary?.usedPercent,
+                                secondaryRemainingPercent: rateLimits.secondary?.remainingPercent,
                                 sourceLabel: rateLimits.sourceLabel
                             )
                         )

@@ -155,14 +155,14 @@ final class CodexLiveUsageClient: Sendable {
 
         do {
             let limits = try fetchUsage(credentials: credentials)
-            AppLog.codex.info("Live OAuth refresh succeeded; plan=\(limits.displayPlan, privacy: .public); primary=\(limits.primary.usedPercent, privacy: .public); secondary=\(limits.secondary.usedPercent, privacy: .public)")
+            AppLog.codex.info("Live OAuth refresh succeeded; plan=\(limits.displayPlan, privacy: .public); primary=\(limits.primary?.usedPercent ?? -1, privacy: .public); secondary=\(limits.secondary?.usedPercent ?? -1, privacy: .public)")
             return limits
         } catch CodexLiveUsageError.unauthorized where credentials.refreshToken?.isEmpty == false {
             AppLog.codex.warning("Live OAuth usage returned unauthorized; refreshing token and retrying")
             let refreshed = try refresh(credentials)
             try save(refreshed, to: refreshed.authURL)
             let limits = try fetchUsage(credentials: refreshed)
-            AppLog.codex.info("Live OAuth retry succeeded; plan=\(limits.displayPlan, privacy: .public); primary=\(limits.primary.usedPercent, privacy: .public); secondary=\(limits.secondary.usedPercent, privacy: .public)")
+            AppLog.codex.info("Live OAuth retry succeeded; plan=\(limits.displayPlan, privacy: .public); primary=\(limits.primary?.usedPercent ?? -1, privacy: .public); secondary=\(limits.secondary?.usedPercent ?? -1, privacy: .public)")
             return limits
         }
     }
@@ -287,20 +287,15 @@ final class CodexLiveUsageClient: Sendable {
             makeWindow(payload.rateLimit?.secondaryWindow),
         ].compactMap { $0 }
 
-        let primary = windows
-            .filter { $0.windowMinutes != 10_080 }
-            .min { $0.windowMinutes < $1.windowMinutes }
-        let secondary = windows
-            .filter { $0.windowMinutes == 10_080 }
-            .first ?? windows.max { $0.windowMinutes < $1.windowMinutes }
-
-        guard windows.count >= 2, let primary, let secondary else {
+        guard !windows.isEmpty else {
             throw CodexLiveUsageError.noRateLimits
         }
 
+        let layout = CodexRateLimitWindows.split(windows)
+
         return CodexRateLimits(
-            primary: primary,
-            secondary: secondary,
+            primary: layout.primary,
+            secondary: layout.secondary,
             credits: makeCredits(payload.credits),
             planType: payload.planType,
             capturedAt: Date(),

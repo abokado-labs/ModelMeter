@@ -86,13 +86,43 @@ struct DashboardView: View {
             configured: true,
             status: store.snapshot.status,
             hasData: store.snapshot.rateLimits != nil,
-            primary: .window(title: "5-hour", window: store.snapshot.rateLimits?.primary, tint: store.snapshot.status.color, now: now, resetDisplayMode: store.resetDisplayMode),
-            secondary: .window(title: "Weekly", window: store.snapshot.rateLimits?.secondary, tint: .purple, now: now, resetDisplayMode: store.resetDisplayMode),
+            primary: codexFiveHourBalance,
+            secondary: codexWeeklyBalance,
             connectionText: codexConnectionText,
             updatedText: codexUpdatedText,
             readingQuality: codexReadingQuality,
             message: codexMessage,
             operationalStatus: store.providerStatuses.codex
+        )
+    }
+
+    private var codexFiveHourBalance: BalanceDisplay {
+        guard let rateLimits = store.snapshot.rateLimits else {
+            return .window(title: "5-hour", window: nil, tint: store.snapshot.status.color, now: now, resetDisplayMode: store.resetDisplayMode)
+        }
+        if let primary = rateLimits.primary {
+            return .window(title: "5-hour", window: primary, tint: store.snapshot.status.color, now: now, resetDisplayMode: store.resetDisplayMode)
+        }
+        return .unavailable(
+            title: "5-hour",
+            tint: store.snapshot.status.color,
+            message: "Temporarily unavailable from OpenAI",
+            help: "OpenAI has temporarily paused five-hour usage tracking."
+        )
+    }
+
+    private var codexWeeklyBalance: BalanceDisplay {
+        guard let rateLimits = store.snapshot.rateLimits else {
+            return .window(title: "Weekly", window: nil, tint: .purple, now: now, resetDisplayMode: store.resetDisplayMode)
+        }
+        if let secondary = rateLimits.secondary {
+            return .window(title: "Weekly", window: secondary, tint: .purple, now: now, resetDisplayMode: store.resetDisplayMode)
+        }
+        return .unavailable(
+            title: "Weekly",
+            tint: .purple,
+            message: "Not reported by OpenAI",
+            help: "OpenAI did not include a weekly usage balance in this reading."
         )
     }
 
@@ -723,6 +753,7 @@ private struct BalanceDisplay {
     let detailText: String
     let detailHelpText: String?
     let tint: Color
+    let availabilityMessage: String?
 
     var emptyCopy: BalanceDisplay {
         BalanceDisplay(
@@ -733,7 +764,8 @@ private struct BalanceDisplay {
             elapsedProgress: nil,
             detailText: "Waiting for status",
             detailHelpText: nil,
-            tint: tint
+            tint: tint,
+            availabilityMessage: nil
         )
     }
 
@@ -747,7 +779,8 @@ private struct BalanceDisplay {
             elapsedProgress: window?.elapsedProgress,
             detailText: reset.text,
             detailHelpText: reset.help,
-            tint: tint
+            tint: tint,
+            availabilityMessage: nil
         )
     }
 
@@ -762,7 +795,22 @@ private struct BalanceDisplay {
             elapsedProgress: nil,
             detailText: formattedReset?.text ?? (detail?.isEmpty == false ? detail! : "Reset not reported"),
             detailHelpText: formattedReset?.help,
-            tint: tint
+            tint: tint,
+            availabilityMessage: nil
+        )
+    }
+
+    static func unavailable(title: String, tint: Color, message: String, help: String) -> BalanceDisplay {
+        BalanceDisplay(
+            title: title,
+            usedPercent: nil,
+            remainingPercent: nil,
+            progress: 0,
+            elapsedProgress: nil,
+            detailText: "",
+            detailHelpText: help,
+            tint: tint,
+            availabilityMessage: message
         )
     }
 
@@ -1063,31 +1111,39 @@ private struct BalanceTile: View {
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(.secondary)
                 .lineLimit(1)
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Used")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Text(balance.usedPercent.map { UsageMath.wholePercent($0) } ?? "--")
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
+            if let availabilityMessage = balance.availabilityMessage {
+                Text(availabilityMessage)
+                    .font(.caption.weight(.medium))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, minHeight: 62, alignment: .leading)
+                    .help(balance.detailHelpText ?? availabilityMessage)
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("Used")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Text(balance.usedPercent.map { UsageMath.wholePercent($0) } ?? "--")
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                    }
+                    Spacer(minLength: 4)
+                    VStack(alignment: .trailing, spacing: 2) {
+                        Text("Available")
+                            .font(.caption2.weight(.medium))
+                            .foregroundStyle(.secondary)
+                        Text(balance.remainingPercent.map { UsageMath.wholePercent($0) } ?? "--")
+                            .font(.title3.weight(.semibold))
+                            .monospacedDigit()
+                    }
                 }
-                Spacer(minLength: 4)
-                VStack(alignment: .trailing, spacing: 2) {
-                    Text("Available")
-                        .font(.caption2.weight(.medium))
-                        .foregroundStyle(.secondary)
-                    Text(balance.remainingPercent.map { UsageMath.wholePercent($0) } ?? "--")
-                        .font(.title3.weight(.semibold))
-                        .monospacedDigit()
-                }
+                PaceBar(balance: balance)
+                Text(balance.detailText)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .help(balance.detailHelpText ?? balance.detailText)
             }
-            PaceBar(balance: balance)
-            Text(balance.detailText)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .help(balance.detailHelpText ?? balance.detailText)
         }
         .frame(minWidth: 136, maxWidth: .infinity, alignment: .leading)
     }

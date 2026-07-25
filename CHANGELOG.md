@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3 - 2026-07-14
+
+Aligns Model Meter with the Meter family settings and privacy controls.
+
+### Changed
+- Refined settings layout and navigation.
+- Added a clear control for optional first-party anonymous usage statistics.
+- Added reliability and maintenance improvements.
+
 ## 1.2 - 2026-06-13
 
 Adds usage history with 24-hour and 7-day graph views, clarifies Codex live balance behavior, and improves reading reliability.

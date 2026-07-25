@@ -14,8 +14,8 @@ final class UsageReaderTests: XCTestCase {
 
         let rateLimits = UsageReader().loadRateLimitsForTesting(fileURL: fileURL)
 
-        XCTAssertEqual(rateLimits?.primary.usedPercent, 25)
-        XCTAssertEqual(rateLimits?.secondary.usedPercent, 9)
+        XCTAssertEqual(rateLimits?.primary?.usedPercent, 25)
+        XCTAssertEqual(rateLimits?.secondary?.usedPercent, 9)
         XCTAssertEqual(rateLimits?.displayPlan, "prolite")
     }
 
@@ -35,8 +35,8 @@ final class UsageReaderTests: XCTestCase {
 
         let snapshot = UsageReader().loadBalanceSnapshot(codexHome: directory.path)
 
-        XCTAssertEqual(snapshot.rateLimits?.primary.usedPercent, 6)
-        XCTAssertEqual(snapshot.rateLimits?.secondary.usedPercent, 7)
+        XCTAssertEqual(snapshot.rateLimits?.primary?.usedPercent, 6)
+        XCTAssertEqual(snapshot.rateLimits?.secondary?.usedPercent, 7)
         XCTAssertEqual(snapshot.rateLimits?.displayPlan, "prolite")
     }
 
@@ -51,9 +51,9 @@ final class UsageReaderTests: XCTestCase {
 
         let rateLimits = UsageReader().loadRateLimitsForTesting(fileURL: fileURL)
 
-        XCTAssertEqual(rateLimits?.primary.usedPercent, 0)
-        XCTAssertEqual(rateLimits?.secondary.usedPercent, 9)
-        XCTAssertEqual(try XCTUnwrap(rateLimits?.primary.resetsAt).timeIntervalSince1970, 1_779_050_062, accuracy: 0.1)
+        XCTAssertEqual(rateLimits?.primary?.usedPercent, 0)
+        XCTAssertEqual(rateLimits?.secondary?.usedPercent, 9)
+        XCTAssertEqual(try XCTUnwrap(rateLimits?.primary?.resetsAt).timeIntervalSince1970, 1_779_050_062, accuracy: 0.1)
     }
 
     func testGeminiParserReadsOnlyDocumentedUsageRows() throws {
@@ -163,6 +163,73 @@ final class UsageReaderTests: XCTestCase {
         XCTAssertNil(snapshot.errorMessage)
     }
 
+    func testCodexWeeklyOnlyRateLimitIsAValidFreshReading() {
+        let weekly = RateLimitWindow(
+            usedPercent: 11,
+            windowMinutes: 10_080,
+            resetsAt: Date(timeIntervalSince1970: 1_779_604_800)
+        )
+
+        let layout = CodexRateLimitWindows.split([weekly])
+        let snapshot = UsageSnapshot(
+            rateLimits: CodexRateLimits(
+                primary: layout.primary,
+                secondary: layout.secondary,
+                credits: nil,
+                planType: "pro",
+                capturedAt: Date(),
+                sourcePath: "codex app-server"
+            )
+        )
+
+        XCTAssertNil(layout.primary)
+        XCTAssertEqual(layout.secondary?.usedPercent, 11)
+        XCTAssertNil(MenuBarMetric.fiveHourUsed.value(from: snapshot))
+        XCTAssertEqual(MenuBarMetric.sevenDayUsed.value(from: snapshot), 11)
+        XCTAssertEqual(snapshot.weeklyProgress, 0.11)
+    }
+
+    func testLiveCodexRefreshKeepsWeeklyOnlyAppServerReadingFresh() throws {
+        let calls = CallLog()
+        let weeklyOnly = CodexRateLimits(
+            primary: nil,
+            secondary: RateLimitWindow(
+                usedPercent: 11,
+                windowMinutes: 10_080,
+                resetsAt: Date(timeIntervalSince1970: 1_779_604_800)
+            ),
+            credits: nil,
+            planType: "pro",
+            capturedAt: Date(),
+            sourcePath: "codex app-server"
+        )
+        let plan = CodexRefreshPlan(
+            loadAppServerRateLimits: {
+                calls.append("app-server")
+                return weeklyOnly
+            },
+            loadOAuthRateLimits: { _ in
+                calls.append("oauth")
+                return weeklyOnly
+            },
+            loadLocalSnapshot: { _ in
+                calls.append("local")
+                return UsageSnapshot()
+            },
+            loadCachedRateLimits: {
+                calls.append("cache")
+                return weeklyOnly
+            }
+        )
+
+        let snapshot = try plan.loadSnapshot(codexHome: "/tmp/codex", dataSource: .liveOAuth)
+
+        XCTAssertEqual(calls.values, ["app-server"])
+        XCTAssertNil(snapshot.rateLimits?.primary)
+        XCTAssertEqual(snapshot.rateLimits?.secondary?.usedPercent, 11)
+        XCTAssertNil(snapshot.errorMessage)
+    }
+
     func testLiveCodexRefreshFallsBackToOAuthWhenAppServerFails() throws {
         let calls = CallLog()
         let oauthLimits = makeRateLimits(sourcePath: "codex oauth wham/usage", usedPercent: 34)
@@ -214,7 +281,7 @@ final class UsageReaderTests: XCTestCase {
         let snapshot = try plan.loadSnapshot(codexHome: "/tmp/codex", dataSource: .liveOAuth)
 
         XCTAssertEqual(calls.values, ["app-server", "oauth", "cache"])
-        XCTAssertEqual(snapshot.rateLimits?.primary.usedPercent, 56)
+        XCTAssertEqual(snapshot.rateLimits?.primary?.usedPercent, 56)
         XCTAssertEqual(snapshot.errorMessage, "Live Codex refresh failed. Showing the last good Codex reading.")
     }
 

@@ -1,10 +1,10 @@
 # Model Meter Privacy Policy
 
-_Last updated: May 19, 2026_
+_Last updated: July 14, 2026_
 
 Model Meter is developed by Abokado Labs. Contact: hello@abokadolabs.com.
 
-Model Meter is designed as a local-first macOS menu bar app. It does not use an Abokado Labs server and does not include analytics or telemetry.
+Model Meter is designed as a local-first macOS menu bar app. Provider usage values, prompts, credentials, and local files stay between your Mac and the providers you enable. Model Meter includes optional first-party anonymous product analytics described below.
 
 ## Data Model Meter Reads
 
@@ -45,9 +45,22 @@ Claude session credentials are stored in macOS Keychain under Model Meter's Keyc
 
 Model Meter uses Sparkle to check for app updates. When update checks run, Sparkle contacts the Model Meter appcast URL hosted by Abokado Labs. This request may include standard network metadata such as your IP address and user agent, as with any ordinary web request. Model Meter does not send Codex usage, Claude usage, Gemini usage, provider credentials, or local session contents as part of update checks.
 
+## Anonymous Product Analytics
+
+Unless disabled in Settings, Model Meter sends small first-party events for
+install, launch, daily active use, update adoption, popover opens, and settings
+opens. Events may include the app version/build, macOS major version, CPU
+architecture, and a random per-app installation identifier that is hashed
+before upload. They do not include prompts, provider usage values, account
+identifiers, credentials, or local files. The identifier is not shared across
+other Meter apps.
+
 ## Data Sharing
 
-Model Meter does not sell, rent, or share your data. There is no Abokado Labs account system for Model Meter, and no Abokado Labs backend receives your usage data.
+Model Meter does not sell, rent, or share your data. There is no Abokado Labs
+account system for Model Meter. Abokado Labs receives only the optional
+anonymous product events described above and ordinary update/download request
+metadata; it does not receive provider usage data.
 
 ## Your Controls
 
@@ -59,6 +72,7 @@ You can:
 - Reset Claude credentials from Settings.
 - Disable Gemini tracking in Settings.
 - Reset Gemini session data from Settings.
+- Disable anonymous usage statistics in Settings.
 - Delete the app to stop all local processing.
 
 ## Third-Party Services

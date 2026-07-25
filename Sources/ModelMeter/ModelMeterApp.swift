@@ -39,10 +39,10 @@ struct ModelMeterApp: App {
 
     var body: some Scene {
         Settings {
-            SettingsView()
-                .environmentObject(appDelegate.store)
-                .frame(width: 620, height: 480)
-                .preferredColorScheme(.dark)
+            MeterSettingsRoot {
+                SettingsView()
+                    .environmentObject(appDelegate.store)
+            }
         }
     }
 }
@@ -63,6 +63,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        configureTelemetry()
         configureUpdater()
         configurePopover()
         configureContextMenu()
@@ -74,6 +75,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         Task { @MainActor in
             await NotificationManager.shared.requestAuthorization()
         }
+    }
+
+    private func configureTelemetry() {
+        let bundle = Bundle.main
+        TelemetryClient.configure(
+            appID: "model-meter",
+            bundleID: bundle.bundleIdentifier ?? "com.bobkitchen.ModelMeter",
+            version: bundle.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "0",
+            build: bundle.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0"
+        )
     }
 
     func applicationWillTerminate(_ notification: Notification) {
@@ -341,6 +352,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         if popover.isShown {
             popover.performClose(sender)
         } else {
+            TelemetryClient.record(.popoverOpened)
             popover.contentSize = dashboardPopoverSize()
             popover.show(relativeTo: sender.bounds, of: sender, preferredEdge: .minY)
             popover.contentViewController?.view.window?.makeKey()
@@ -366,6 +378,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     @objc func openSettings(_ sender: Any?) {
+        TelemetryClient.record(.settingsOpened)
         NSApp.activate(ignoringOtherApps: true)
         _ = popover.contentViewController?.view
         NotificationCenter.default.post(name: .openSettingsScene, object: nil)

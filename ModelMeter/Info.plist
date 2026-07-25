@@ -33,7 +33,7 @@
 	<key>SUEnableInstallerLauncherService</key>
 	<true/>
 	<key>SUFeedURL</key>
-	<string>https://abokadolabs.com/model-meter/appcast.xml</string>
+	<string>$(METER_APPCAST_URL)</string>
 	<key>SUPublicEDKey</key>
 	<string>DHBZqhT/krLFIHtzcVR4zUku0yFgVleeRIK8toESI0E=</string>
 </dict>

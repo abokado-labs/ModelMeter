@@ -74,14 +74,20 @@ final class CodexAppServerClient: Sendable {
             accountPlan = accountResponse.account?.planType
         }
 
-        guard let primary = makeWindow(limitsResponse.rateLimits.primary),
-              let secondary = makeWindow(limitsResponse.rateLimits.secondary) else {
+        let windows = [
+            makeWindow(limitsResponse.rateLimits.primary),
+            makeWindow(limitsResponse.rateLimits.secondary),
+        ].compactMap { $0 }
+
+        guard !windows.isEmpty else {
             throw CodexAppServerError.noRateLimits
         }
 
+        let layout = CodexRateLimitWindows.split(windows)
+
         return CodexRateLimits(
-            primary: primary,
-            secondary: secondary,
+            primary: layout.primary,
+            secondary: layout.secondary,
             credits: makeCredits(limitsResponse.rateLimits.credits),
             planType: firstNonEmpty(limitsResponse.rateLimits.planType, accountPlan),
             capturedAt: Date(),

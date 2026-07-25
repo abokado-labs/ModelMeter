@@ -324,7 +324,8 @@ The app is Swift/SwiftUI with an AppKit menu bar host.
 Useful commands:
 
 ```bash
-swift test
+xcodegen generate
+xcodebuild -project ModelMeter.xcodeproj -scheme ModelMeter -destination 'platform=macOS' test
 xcodebuild -project ModelMeter.xcodeproj -scheme ModelMeter -configuration Debug build
 ```
 

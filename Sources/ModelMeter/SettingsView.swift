@@ -7,15 +7,14 @@ struct SettingsView: View {
     var body: some View {
         TabView {
             displayTab
-                .tabItem { Label("Menu Bar", systemImage: "menubar.rectangle") }
+                .tabItem { Label("Display", systemImage: "menubar.rectangle") }
             sourcesTab
-                .tabItem { Label("Providers", systemImage: "server.rack") }
+                .tabItem { Label("Sources", systemImage: "server.rack") }
             graphTab
                 .tabItem { Label("History", systemImage: "chart.line.uptrend.xyaxis") }
             aboutTab
                 .tabItem { Label("About", systemImage: "info.circle") }
         }
-        .padding(18)
         .onDisappear {
             store.saveSettings()
         }
@@ -31,7 +30,7 @@ struct SettingsView: View {
                 Toggle("Gemini", isOn: $store.showGeminiInMenuBar)
                     .disabled(!store.geminiEnabled)
                 Text("Only visible providers appear in the menu bar. Collection is controlled in Sources.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Menu Bar Display") {
@@ -78,7 +77,7 @@ struct SettingsView: View {
                 .pickerStyle(.segmented)
 
                 Text("Provider labels also control the graph legend.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Warnings") {
@@ -95,14 +94,14 @@ struct SettingsView: View {
                     .disabled(!store.providerStatusWarningsEnabled)
                 }
                 Text("Pace warnings turn menu bar values red. Provider incidents explain whether a live reading may be less trustworthy.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Preview") {
                 LabeledContent("Current menu bar", value: store.menuTitle)
             }
         }
-        .formStyle(.grouped)
+        .meterSettingsForm()
     }
 
     private var sourcesTab: some View {
@@ -126,7 +125,7 @@ struct SettingsView: View {
                 }
 
                 Text("Live ChatGPT uses the existing Codex sign-in. Local files may be stale.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Claude") {
@@ -155,7 +154,7 @@ struct SettingsView: View {
                 }
 
                 Text("Claude credentials are kept in macOS Keychain.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Gemini") {
@@ -191,10 +190,10 @@ struct SettingsView: View {
                 }
 
                 Text("Gemini is read from its usage page through Model Meter's WebKit session.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
         }
-        .formStyle(.grouped)
+        .meterSettingsForm()
     }
 
     private var graphTab: some View {
@@ -218,28 +217,44 @@ struct SettingsView: View {
                 Toggle("Gemini", isOn: $store.showGeminiInHistoryGraph)
                     .disabled(!store.showHistoryGraph || !store.geminiEnabled)
                 Text("Hidden providers are removed from the graph and legend only.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
 
             Section("Style") {
                 Toggle("Shade below lines", isOn: $store.shadeHistoryGraphArea)
                     .disabled(!store.showHistoryGraph)
                 Text("Area fill works best when one provider is selected.")
-                    .settingsFootnote()
+                    .meterSettingsFootnote()
             }
         }
-        .formStyle(.grouped)
+        .meterSettingsForm()
     }
 
     private var aboutTab: some View {
         Form {
             Section("Model Meter") {
-                LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0")
+                LabeledContent("Version", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "Unavailable")
+                LabeledContent("Build", value: Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "Unavailable")
+            }
+
+            Section("Updates") {
                 Button {
                     checkForUpdates()
                 } label: {
                     Label("Check for Updates", systemImage: "arrow.triangle.2.circlepath")
                 }
+                Text("Signed updates are delivered directly from Abokado Labs.")
+                    .meterSettingsFootnote()
+            }
+
+            Section("Privacy") {
+                Toggle("Share anonymous usage statistics", isOn: telemetryEnabledBinding)
+
+                Text("Usage percentages, reset times, and provider status are stored locally. Claude credentials use macOS Keychain. Gemini uses an embedded WebKit session.")
+                    .meterSettingsFootnote()
+
+                Text("Anonymous usage statistics help count installs, launches, update adoption, and basic feature use. They do not include prompts, provider usage values, account identifiers, local files, or credentials.")
+                    .meterSettingsFootnote()
             }
 
             Section("Support") {
@@ -253,18 +268,8 @@ struct SettingsView: View {
                 } label: {
                     Label("Request Feature", systemImage: "lightbulb")
                 }
-                Text("Opens your email app. Nothing is sent automatically.")
-                    .settingsFootnote()
-            }
-
-            Section("Privacy") {
-                Text("Usage percentages, reset times, and provider status are stored locally. Claude credentials use macOS Keychain. Gemini uses an embedded WebKit session.")
-                    .settingsFootnote()
-            }
-
-            Section("Links") {
                 Button { openDocument("PRIVACY") } label: {
-                    Label("Privacy", systemImage: "lock.shield")
+                    Label("Privacy Policy", systemImage: "lock.shield")
                 }
                 Button { openDocument("THIRD_PARTY_NOTICES") } label: {
                     Label("Licenses", systemImage: "doc.text")
@@ -272,9 +277,11 @@ struct SettingsView: View {
                 Button { openURL("https://abokadolabs.com/") } label: {
                     Label("Website", systemImage: "globe")
                 }
+                Text("Feedback opens your mail app. Nothing is sent automatically.")
+                    .meterSettingsFootnote()
             }
         }
-        .formStyle(.grouped)
+        .meterSettingsForm()
     }
 
     private var geminiWebSessionAvailable: Bool {
@@ -340,13 +347,11 @@ struct SettingsView: View {
         guard let url = URL(string: string) else { return }
         NSWorkspace.shared.open(url)
     }
-}
 
-private extension Text {
-    func settingsFootnote() -> some View {
-        self
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .fixedSize(horizontal: false, vertical: true)
+    private var telemetryEnabledBinding: Binding<Bool> {
+        Binding(
+            get: { TelemetryClient.isEnabled },
+            set: { TelemetryClient.setEnabled($0) }
+        )
     }
 }

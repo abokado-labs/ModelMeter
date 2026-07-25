@@ -8,7 +8,7 @@ This guide covers how to get set up, what kinds of contributions are welcome, an
 
 1. Open an issue first for anything bigger than a typo, so we can agree on the shape of the change before you spend time on it.
 2. Fork, branch off `main`, make focused commits.
-3. Build with Xcode 16 or `scripts/build_app.sh`, run `swift test`, then open a PR against `main`.
+3. Build with Xcode or `scripts/build_app.sh`, run the Xcode test scheme, then open a PR against `main`.
 4. The maintainer is [@bobkitchen](https://github.com/bobkitchen). Expect a response within a few days.
 
 ## Project layout
@@ -20,7 +20,7 @@ Package.swift           SwiftPM manifest (Sparkle dependency)
 Sources/ModelMeter/     Swift source — most app logic lives here
 ModelMeter/             App entitlements + Info.plist
 Assets.xcassets/        App icon + image assets
-Tests/                  Unit tests (swift test)
+Tests/                  Unit tests (ModelMeter Xcode scheme)
 scripts/build_app.sh    One-shot debug build to ./build/
 DISTRIBUTION.md         Release flow: sign, notarize, Sparkle appcast
 ```
@@ -69,11 +69,14 @@ For testing Codex integration, you need to have actually used Codex locally so t
 
 - Support for an additional provider (Google AI Studio, OpenRouter, etc) — depends on whether there's a stable, authenticated, non-fragile data source.
 - Major UI changes to the popover or menu bar — the current shape is intentional but not sacred.
-- Anything that changes the data flow (introducing a server, adding telemetry, sending data anywhere).
+- Anything that changes the data flow, expands the existing first-party
+  anonymous telemetry fields, or sends user/provider content anywhere.
 
 **Probably not a fit:**
 
-- Telemetry, analytics, crash reporting that phones home. The app is local-first by design and the [privacy policy](https://abokadolabs.com/model-meter/privacy.html) reflects that.
+- Third-party analytics or crash-reporting SDKs. The app's limited first-party
+  anonymous product telemetry is documented in the
+  [privacy policy](https://abokadolabs.com/model-meter/privacy.html).
 - A Windows or Linux port — the app is tightly coupled to AppKit, Keychain, and the macOS menu bar.
 - An iOS version — Codex data lives on a Mac, so an iOS app would have nothing to read.
 
@@ -93,7 +96,8 @@ If you're not sure whether something is a fit, open an issue and ask.
 Run all tests:
 
 ```bash
-swift test
+xcodegen generate
+xcodebuild -project ModelMeter.xcodeproj -scheme ModelMeter -destination 'platform=macOS' test
 ```
 
 Or in Xcode: `Cmd-U`.
@@ -105,7 +109,7 @@ If you're changing usage-reader logic (Codex session parsing, Claude usage parsi
 - **Commits**: imperative mood, short subject line ("Add provider toggle for Anthropic", not "Added provider toggle"). Body explains *why* if it's not obvious from the diff.
 - **Branches**: branch off `main`. Name them `fix/short-description` or `feat/short-description`.
 - **PRs**: one concern per PR. A 200-line PR that does one thing is easier to land than a 2000-line PR that does ten. Reference the issue you're solving in the description.
-- **CI**: there's no CI yet. Run `swift test` locally and confirm the app builds before opening the PR.
+- **CI**: there's no CI yet. Run the Xcode test scheme locally and confirm the app builds before opening the PR.
 
 ## Releasing (maintainers)
 

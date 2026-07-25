@@ -20,7 +20,7 @@ enum CodexDataSource: String, CaseIterable, Identifiable {
     var detail: String {
         switch self {
         case .liveOAuth:
-            return "Requests live 5-hour and weekly balances through Codex app-server when available, then falls back to Codex's ChatGPT login in auth.json."
+            return "Requests live usage balances through Codex app-server when available, then falls back to Codex's ChatGPT login in auth.json."
         case .localFiles:
             return "Reads Codex's local session snapshots and state_5.sqlite. This can lag or miss live balance changes."
         }
@@ -39,8 +39,8 @@ struct UsageSnapshot {
     var updatedAt: Date?
     var errorMessage: String?
 
-    var sessionProgress: Double { rateLimits?.primary.progress ?? UsageMath.progress(sessionTokens, SettingsStore.shared.sessionLimit) }
-    var weeklyProgress: Double { rateLimits?.secondary.progress ?? UsageMath.progress(weeklyTokens, SettingsStore.shared.weeklyLimit) }
+    var sessionProgress: Double { rateLimits?.primary?.progress ?? UsageMath.progress(sessionTokens, SettingsStore.shared.sessionLimit) }
+    var weeklyProgress: Double { rateLimits?.secondary?.progress ?? UsageMath.progress(weeklyTokens, SettingsStore.shared.weeklyLimit) }
     var todayProgress: Double { UsageMath.progress(todayTokens, SettingsStore.shared.dailyLimit) }
     var status: UsageStatus { UsageStatus(progress: max(sessionProgress, weeklyProgress)) }
 
@@ -688,8 +688,8 @@ struct ModelUsage: Identifiable, Decodable {
 }
 
 struct CodexRateLimits: Codable {
-    let primary: RateLimitWindow
-    let secondary: RateLimitWindow
+    let primary: RateLimitWindow?
+    let secondary: RateLimitWindow?
     let credits: CreditBalance?
     let planType: String?
     let capturedAt: Date
@@ -713,8 +713,20 @@ struct CodexRateLimits: Codable {
 
     var isLikelyPlaceholder: Bool {
         guard isLocalFallback, planType == nil || planType?.isEmpty == true else { return false }
-        guard primary.usedPercent == 0, secondary.usedPercent == 0 else { return false }
+        guard primary?.usedPercent == 0, secondary?.usedPercent == 0 else { return false }
         return true
+    }
+}
+
+enum CodexRateLimitWindows {
+    static func split(_ windows: [RateLimitWindow]) -> (primary: RateLimitWindow?, secondary: RateLimitWindow?) {
+        let primary = windows
+            .filter { $0.windowMinutes != 10_080 }
+            .min { $0.windowMinutes < $1.windowMinutes }
+        let secondary = windows
+            .filter { $0.windowMinutes == 10_080 }
+            .first ?? windows.max { $0.windowMinutes < $1.windowMinutes }
+        return (primary, secondary)
     }
 }
 
@@ -811,13 +823,13 @@ enum MenuBarMetric: String, CaseIterable, Identifiable {
         guard let rateLimits = snapshot.rateLimits else { return nil }
         switch self {
         case .fiveHourUsed:
-            return rateLimits.primary.usedPercent
+            return rateLimits.primary?.usedPercent
         case .fiveHourAvailable:
-            return rateLimits.primary.remainingPercent
+            return rateLimits.primary?.remainingPercent
         case .sevenDayUsed:
-            return rateLimits.secondary.usedPercent
+            return rateLimits.secondary?.usedPercent
         case .sevenDayAvailable:
-            return rateLimits.secondary.remainingPercent
+            return rateLimits.secondary?.remainingPercent
         }
     }
 
